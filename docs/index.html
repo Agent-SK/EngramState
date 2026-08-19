@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./example.css" />
 </head>
 <body>
   <div class="noise"></div>
@@ -62,6 +63,53 @@
       <div class="section-kicker">01 · MOTIVATION</div>
       <h2>The tool never changed.<br>Why read it again?</h2>
       <p class="section-copy">Function-calling prompts contain mostly static information: tool names, descriptions, arguments, value formats, and examples. Conventional pipelines repeatedly prefill that same text for every request. EngramState treats this information as reusable memory instead of repeated input.</p>
+
+      <div class="tool-example-grid">
+        <article class="tool-example baseline">
+          <div class="tool-example-head">
+            <span class="tool-example-label">PROMPT BASELINE · EVERY REQUEST</span>
+            <h3>The model rereads the tool specification.</h3>
+            <p>Even a tiny user request is concatenated with static tool knowledge before generation can begin.</p>
+          </div>
+          <div class="tool-example-query">“Set a timer for 20 minutes.”</div>
+          <pre class="tool-spec-code"><span class="spec-name">name: set_timer</span>
+<span class="spec-key">description:</span> Start a countdown timer on the device.
+<span class="spec-key">arguments:</span>
+  minutes: integer, required
+  seconds: integer, optional
+<span class="spec-key">constraints:</span>
+  - preserve requested duration
+  - reject negative values
+  - normalize minutes / seconds
+<span class="spec-key">examples:</span>
+  "5 minutes"  → set_timer(minutes=5)
+  "90 seconds" → set_timer(minutes=1, seconds=30)
+
++ set_alarm specification
++ create_event specification
++ ... other tool specifications ...</pre>
+          <div class="tool-example-flow">
+            <div class="flow-line"><span class="flow-pill">User query</span><span>+</span><span class="flow-pill hot">Long tool specs</span><span>→</span><span class="flow-pill hot">Prefill</span><span>→</span><span class="flow-pill">Function call</span></div>
+            <div class="tool-example-note">The same static specification is paid for again on the next request.</div>
+          </div>
+        </article>
+
+        <article class="tool-example engram">
+          <div class="tool-example-head">
+            <span class="tool-example-label">ENGRAMSTATE · COMPILE ONCE</span>
+            <h3>The specification becomes reusable state.</h3>
+            <p>The detailed timer knowledge is consumed offline. Runtime only restores the state selected for the live query.</p>
+          </div>
+          <div class="runtime-stack">
+            <div class="runtime-row"><span>Offline</span><div class="runtime-card">set_timer specification<br>↓ single forward pass</div></div>
+            <div class="runtime-row"><span>Stored</span><div class="runtime-card state">timer_base.state</div></div>
+            <div class="runtime-row"><span>Runtime</span><div class="runtime-card">“Set a timer for 20 minutes.”</div></div>
+            <div class="runtime-row"><span>Retrieve</span><div class="runtime-card state">load timer_base.state</div></div>
+            <div class="runtime-row"><span>Generate</span><div class="runtime-card call">set_timer(minutes=20)</div></div>
+          </div>
+        </article>
+      </div>
+
       <div class="feature-grid">
         <article><div class="icon">01</div><h3>Compile offline</h3><p>Consume each tool specification once and retain the resulting recurrent state instead of logits.</p></article>
         <article><div class="icon">02</div><h3>Retrieve at runtime</h3><p>A lightweight state retriever maps the live user query to a small Top-K candidate list.</p></article>
@@ -79,22 +127,31 @@
       <div class="method-board">
         <div class="offline-column">
           <div class="board-label">OFFLINE COMPILATION</div>
-          <div class="spec-card"><span>Tool specification</span><small>name · description · arguments · formats · examples</small></div>
+          <div class="spec-card spec-card-detailed">
+            <span>Tool specification · <code style="display:inline;margin:0;padding:2px 6px">set_timer</code></span>
+            <code>description: Start a countdown timer
+arguments:
+  minutes: integer, required
+  seconds: integer, optional
+examples:
+  "5 minutes" → set_timer(minutes=5)</code>
+            <small>This canonical specification is static and reusable across requests.</small>
+          </div>
           <div class="small-arrow">↓ single forward pass</div>
-          <div class="state-card base"><span>Base State</span><small>canonical tool knowledge</small></div>
-          <div class="spec-card muted"><span>Failure rules & hard cases</span><small>error patterns · difficult values · corrections</small></div>
+          <div class="state-card base"><span>Base State · timer_base.state</span><small>canonical timer knowledge encoded in recurrent state</small></div>
+          <div class="spec-card muted"><span>Failure rules & hard cases</span><small>ambiguous units · invalid durations · seconds/minutes normalization</small></div>
           <div class="small-arrow">↓ single forward pass</div>
           <div class="state-card corrective"><span>Corrective State</span><small>targeted repair knowledge</small></div>
         </div>
         <div class="runtime-column">
           <div class="board-label">ONLINE EXECUTION</div>
-          <div class="flow-node query">User Query</div>
+          <div class="flow-node query">User Query <small class="query-example">“Set a timer for 20 minutes.”</small></div>
           <div class="arrow">↓</div>
-          <div class="flow-node">State Retriever <small>Top-K candidates</small></div>
+          <div class="flow-node">State Retriever <small>Top-K candidates → timer</small></div>
           <div class="arrow">↓</div>
-          <div class="flow-node accent">Load Base State</div>
+          <div class="flow-node accent">Load Base State <small>timer_base.state</small></div>
           <div class="arrow">↓</div>
-          <div class="flow-node">Generate Function Call</div>
+          <div class="flow-node">Generate Function Call <small>set_timer(minutes=20)</small></div>
           <div class="fork"><span>valid ✓</span><span>needs correction ↘</span></div>
           <div class="runtime-bottom"><div class="flow-node success">Execute Tool</div><div class="flow-node corrective-node">Load Corrective State</div></div>
         </div>
