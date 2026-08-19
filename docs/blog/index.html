@@ -1,71 +1,14 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Technical notes from the EngramState project." />
-  <title>EngramState · Technical Notes</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../style.css" />
-  <link rel="stylesheet" href="../brand.css" />
-</head>
-<body>
-  <div class="noise"></div>
-  <header class="nav shell">
-    <a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a>
-    <nav>
-      <a href="../#overview">Overview</a>
-      <a href="../#method">Method</a>
-      <a href="../#results">Results</a>
-      <a href="../#demo">Demo</a>
-      <a href="./">Blog</a>
-      <a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a>
-    </nav>
-  </header>
-
-  <main>
-    <section class="blog-hero shell">
-      <div class="blog-hero-card">
-        <div class="blog-hero-copy">
-          <span class="blog-pill">EngramState · Technical Notes</span>
-          <h1>Inside the memory<br>of an on-device agent.</h1>
-          <p>Short, visual explanations of the choices behind EngramState — why repeated tool prompts are costly, why the method separates Base and Corrective states, and how recurrent memory is stored for mobile deployment.</p>
-          <div class="hero-badges">
-            <span class="hero-badge">Research notes</span>
-            <span class="hero-badge yellow">Load memory, not prompts</span>
-          </div>
-        </div>
-        <div class="blog-hero-art">
-          <img data-engram-art alt="EngramState robot organizing tool memories inside a smartphone" />
-        </div>
-      </div>
-    </section>
-
-    <section class="blog-list shell">
-      <a class="blog-card" href="./why-reusable-states.html">
-        <time>Technical note 01</time>
-        <div><h2>Why repeated tool prompts are expensive</h2><p>Static tool knowledge is useful, but repeatedly prefilling it is not. See why a phone should remember tool instructions instead of rereading them.</p></div>
-        <span>→</span>
-      </a>
-      <a class="blog-card" href="./base-corrective.html">
-        <time>Technical note 02</time>
-        <div><h2>Why EngramState uses Base and Corrective states</h2><p>Separate the common path from difficult cases so most requests stay lightweight while targeted correction remains available.</p></div>
-        <span>→</span>
-      </a>
-      <a class="blog-card" href="./four-bit-states.html">
-        <time>Technical note 03</time>
-        <div><h2>Storing recurrent states at 4 bits</h2><p>State reuse trades repeated prompt compute for persistent memory. Quantization makes that trade practical on mobile hardware.</p></div>
-        <span>→</span>
-      </a>
-    </section>
-  </main>
-
-  <footer class="shell">
-    <div><b>EngramState</b><span>Technical notes on reusable recurrent states.</span></div>
-    <p><a class="back-link" href="../">← Project homepage</a></p>
-  </footer>
-  <script src="../hero-loader.js"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Technical deep dives from the EngramState project: on-device function calling, reusable recurrent states, retrieval, compression, scaling, and mobile latency."><title>EngramState · Technical Blog</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../brand.css"></head><body><div class="noise"></div>
+<header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="../#overview">Overview</a><a href="../#method">Method</a><a href="../#results">Results</a><a href="../#demo">Demo</a><a href="./">Blog</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header>
+<main><section class="blog-hero shell"><div class="blog-hero-card"><div class="blog-hero-copy"><span class="blog-pill">EngramState · Engineering Notes</span><h1>Inside the memory<br>of an on-device agent.</h1><p>Long-form technical notes from the paper and the experiments we ran while stress-testing the design: how states are constructed, how retrieval scales, what happens at 3 bits, how retries behave on a Galaxy S25 Ultra, and what changes when tools are updated or combined.</p><div class="hero-badges"><span class="hero-badge">Systems + ML</span><span class="hero-badge">Real-device evaluation</span><span class="hero-badge yellow">Load memory, not prompts</span></div></div><div class="blog-hero-art"><img data-engram-art alt="EngramState robot organizing tool memories inside a smartphone"></div></div></section>
+<section class="blog-list shell">
+<a class="blog-card" href="./why-reusable-states.html"><time>01 · Motivation</time><div><h2>Why repeated tool prompts are expensive</h2><p>Why a short user request can create a long prefill, how recurrent states differ from Transformer prefix caches, and why the distinction matters on a phone.</p></div><span>→</span></a>
+<a class="blog-card" href="./base-corrective.html"><time>02 · Construction</time><div><h2>How Base and Corrective states are constructed</h2><p>200-example retention calibration, model-specific state boundaries, single-forward-pass compilation, and why rare hard cases live outside the common path.</p></div><span>→</span></a>
+<a class="blog-card" href="./four-bit-states.html"><time>03 · Compression</time><div><h2>How far can recurrent states be compressed?</h2><p>Why channel-wise quantization works for WKV states, 4-bit deployment, and what our 3-bit / 2-bit experiments say about the practical compression limit.</p></div><span>→</span></a>
+<a class="blog-card" href="./scaling-retrieval.html"><time>04 · Scaling</time><div><h2>Scaling to 206 tools without a large retriever backbone</h2><p>Which costs grow with tool count, Hit@1/Hit@4 scaling, end-to-end retrieval quality, and the storage trade-off versus MPNet/BGE/MiniLM.</p></div><span>→</span></a>
+<a class="blog-card" href="./mobile-latency.html"><time>05 · Mobile systems</time><div><h2>Worst-case retry latency on Galaxy S25 Ultra</h2><p>Real-device retry bounds, single-call and multi-call tails, and why four EngramState retries can still finish before one long-prompt attempt.</p></div><span>→</span></a>
+<a class="blog-card" href="./dynamic-tools-multitool.html"><time>06 · Tool lifecycle</time><div><h2>Dynamic updates and multi-tool execution</h2><p>Incremental state compilation, new/deleted tools, model-specific state compatibility, joint multi-tool states, and query decomposition.</p></div><span>→</span></a>
+<a class="blog-card" href="./structured-decoding.html"><time>07 · Structured output</time><div><h2>Combining EngramState with XGrammar2</h2><p>Why state memory and grammar constraints solve different problems, plus the JSON-format experiment where constrained decoding sharply improves valid outputs.</p></div><span>→</span></a>
+</section></main>
+<footer class="shell"><div><b>EngramState</b><span>Technical notes on reusable recurrent states for on-device tool calling.</span></div><p><a class="back-link" href="../">← Project homepage</a></p></footer><script src="../hero-loader.js"></script></body></html>
