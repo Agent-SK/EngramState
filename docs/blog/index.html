@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../brand.css" />
 </head>
 <body>
   <div class="noise"></div>
@@ -26,15 +27,26 @@
 
   <main>
     <section class="blog-hero shell">
-      <div class="section-kicker">ENGRAMSTATE · TECHNICAL NOTES</div>
-      <h1>Notes from building<br>a state-based tool caller.</h1>
-      <p>Short explanations of the design choices behind EngramState: why repeated tool prompts are costly, why the method separates Base and Corrective states, and how recurrent states are stored for mobile deployment.</p>
+      <div class="blog-hero-card">
+        <div class="blog-hero-copy">
+          <span class="blog-pill">EngramState · Technical Notes</span>
+          <h1>Inside the memory<br>of an on-device agent.</h1>
+          <p>Short, visual explanations of the choices behind EngramState — why repeated tool prompts are costly, why the method separates Base and Corrective states, and how recurrent memory is stored for mobile deployment.</p>
+          <div class="hero-badges">
+            <span class="hero-badge">Research notes</span>
+            <span class="hero-badge yellow">Load memory, not prompts</span>
+          </div>
+        </div>
+        <div class="blog-hero-art">
+          <img data-engram-art alt="EngramState robot organizing tool memories inside a smartphone" />
+        </div>
+      </div>
     </section>
 
     <section class="blog-list shell">
       <a class="blog-card" href="./why-reusable-states.html">
         <time>Technical note 01</time>
-        <div><h2>Why repeated tool prompts are expensive</h2><p>Static tool knowledge is useful, but repeatedly prefilling it is not. This note motivates compiling it into reusable recurrent states.</p></div>
+        <div><h2>Why repeated tool prompts are expensive</h2><p>Static tool knowledge is useful, but repeatedly prefilling it is not. See why a phone should remember tool instructions instead of rereading them.</p></div>
         <span>→</span>
       </a>
       <a class="blog-card" href="./base-corrective.html">
@@ -44,7 +56,7 @@
       </a>
       <a class="blog-card" href="./four-bit-states.html">
         <time>Technical note 03</time>
-        <div><h2>Storing recurrent states at 4 bits</h2><p>State reuse trades prompt compute for persistent storage. Quantization makes that trade practical on mobile hardware.</p></div>
+        <div><h2>Storing recurrent states at 4 bits</h2><p>State reuse trades repeated prompt compute for persistent memory. Quantization makes that trade practical on mobile hardware.</p></div>
         <span>→</span>
       </a>
     </section>
@@ -54,5 +66,6 @@
     <div><b>EngramState</b><span>Technical notes on reusable recurrent states.</span></div>
     <p><a class="back-link" href="../">← Project homepage</a></p>
   </footer>
+  <script src="../hero-loader.js"></script>
 </body>
 </html>
