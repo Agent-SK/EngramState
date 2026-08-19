@@ -14,7 +14,7 @@ const examples = {
     queryTokens: 8,
     promptTokens: 993,
     promptMs: 7360,
-    engramMs: 94
+    engramMs: 196
   },
   alarm: {
     query: 'Wake me up at 7 tomorrow morning.',
@@ -26,19 +26,19 @@ const examples = {
     queryTokens: 9,
     promptTokens: 994,
     promptMs: 7368,
-    engramMs: 106
+    engramMs: 240
   },
   calendar: {
-    query: 'Add a team sync tomorrow at 3 PM.',
-    result: 'create_event(15:00, "team sync")',
+    query: 'Add a calendar event tomorrow at 3 PM for lab meeting.',
+    result: 'create_event(15:00, "lab meeting")',
     state: 'calendar_base.state',
     kind: 'calendar',
     title: 'Calendar',
     stateNote: 'calendar schema and date handling already compiled offline',
-    queryTokens: 10,
-    promptTokens: 995,
-    promptMs: 7375,
-    engramMs: 118
+    queryTokens: 13,
+    promptTokens: 998,
+    promptMs: 7397,
+    engramMs: 282
   }
 };
 
@@ -147,8 +147,8 @@ edge cases, safety constraints, and examples ...
       - preserve the event title
       - do not invent attendees
     examples:
-      "team sync tomorrow at 3 PM"
-      -> {"title":"team sync","start_time":"tomorrow 15:00"}
+      "lab meeting tomorrow at 3 PM"
+      -> {"title":"lab meeting","start_time":"tomorrow 15:00"}
 
   - name: send_message
     description: Send a message to a known contact.
@@ -160,7 +160,7 @@ edge cases, safety constraints, and examples ...
 ... repeated descriptions, date formats, timezone rules,
 edge cases, and function-call examples ...
 
-<span class="schema-key">user_query:</span> Add a team sync tomorrow at 3 PM.`
+<span class="schema-key">user_query:</span> Add a calendar event tomorrow at 3 PM for lab meeting.`
 };
 
 const demo = document.getElementById('demo');
@@ -227,7 +227,6 @@ if (demo) {
       </div>
 
       <div class="race-caption">
-        <span>TTFT updates with the selected query length.</span>
         <span>Device UI is a visual simulation; the Android demo will invoke real actions.</span>
       </div>
     </div>
@@ -315,7 +314,7 @@ if (demo) {
         <div class="calendar-date"><strong>20</strong><span>AUG</span></div>
         <div class="calendar-event">
           <span class="event-bar"></span>
-          <div><strong>Team sync</strong><small>Tomorrow · 3:00 PM</small></div>
+          <div><strong>Lab meeting</strong><small>Tomorrow · 3:00 PM</small></div>
         </div>
         <div class="device-success">Event added to calendar</div>
       </div>`;
