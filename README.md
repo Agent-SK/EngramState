@@ -18,6 +18,67 @@ Modern function-calling systems repeatedly prefill long tool specifications befo
 
 **EngramState** moves reusable tool knowledge out of the runtime prompt. Tool specifications are compiled offline into reusable recurrent states, retrieved from the live user query, and loaded directly into a stateful language model at inference time.
 
+### A concrete example
+
+Suppose the user asks:
+
+> **“Set a timer for 20 minutes.”**
+
+A conventional function-calling prompt may include a tool specification like this before the model can answer:
+
+```yaml
+name: set_timer
+description: Start a countdown timer on the device.
+arguments:
+  minutes:
+    type: integer
+    required: true
+  seconds:
+    type: integer
+    required: false
+constraints:
+  - Preserve the user's requested duration.
+  - Reject negative values.
+  - Normalize minutes and seconds when needed.
+examples:
+  - user: "Set a timer for 5 minutes."
+    call: set_timer(minutes=5)
+  - user: "Set a timer for 90 seconds."
+    call: set_timer(minutes=1, seconds=30)
+```
+
+And that is only **one** tool. A real agent prompt may concatenate the corresponding specifications for alarms, calendars, messaging, weather, and many other tools.
+
+#### Prompt baseline — repeated at runtime
+
+```text
+User Query
++ set_timer specification
++ set_alarm specification
++ create_event specification
++ ... other tool specifications ...
+────────────────────────────────────
+Long Prefill
+────────────────────────────────────
+set_timer(minutes=20)
+```
+
+#### EngramState — compile once, load at runtime
+
+```text
+OFFLINE
+set_timer specification ──> timer_base.state
+
+RUNTIME
+"Set a timer for 20 minutes."
+        │
+        ├──> State Retriever
+        ├──> load timer_base.state
+        └──> set_timer(minutes=20)
+```
+
+The key difference is that **the detailed tool specification is reusable knowledge**. Prompt-based inference reads it again for every request; EngramState compiles it once and restores the resulting recurrent state when the tool is needed.
+
 ```text
 Prompt-based tool calling
 User Query + Tool Specifications ──> Long Prefill ──> Function Call
@@ -48,6 +109,8 @@ EngramState separates tool knowledge into two reusable states:
 
 - **Base State** — the canonical tool specification: name, description, arguments, value formats, and representative examples.
 - **Corrective State** — compact knowledge about failure modes and difficult cases, used only when the base attempt requires correction.
+
+For the timer example, the Base State can encode the canonical `set_timer` specification shown above, while the live runtime input remains only the user's request.
 
 A lightweight **State Retriever** maps the user query to candidate tool states. Each candidate is loaded directly into the recurrent model state, allowing inference to begin from the user query rather than from a long concatenated tool prompt.
 
