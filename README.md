@@ -10,7 +10,7 @@
 
 EngramState compiles static tool specifications into reusable recurrent states, retrieves the right state from a live query, and loads it directly into a stateful language model. In our mobile evaluation, the model runs locally on a **Samsung Galaxy S25 Ultra** and reaches the tool call without remote model serving in the measured execution path.
 
-[Project Page](https://agent-sk.github.io/ES/) · [Interactive Demo](https://agent-sk.github.io/ES/#demo) · [Technical Blog](./docs/blog/) · [Method](#how-it-works) · [Results](#key-results)
+[Project Page](https://agent-sk.github.io/EngramState/) · [Interactive Demo](https://agent-sk.github.io/EngramState/#demo) · [Technical Blog](./docs/blog/) · [Method](#how-it-works) · [Results](#key-results)
 
 </div>
 
@@ -53,21 +53,27 @@ examples:
 
 And that is only **one** tool. A real agent prompt may concatenate the corresponding specifications for alarms, calendars, messaging, weather, settings, and many other tools.
 
-#### Prompt baseline — repeated at runtime
+#### Prompt baseline — retrieve, then rebuild the prompt every request
 
 ```text
-User Query
-+ set_timer specification
-+ set_alarm specification
-+ create_event specification
-+ ... other tool specifications ...
-────────────────────────────────────
-Long Prefill
-────────────────────────────────────
-set_timer(minutes=20)
+"Set a timer for 20 minutes."
+        │
+        ▼
+  State Retriever
+        │
+        ▼
+ candidate tool specs
+        │
+        ▼
+ user query + 985 tool-prompt tokens
+        │
+        ▼
+ set_timer(minutes=20)
 ```
 
-#### EngramState — compile once, load at runtime
+The retrieval step can select the right tools, but their static textual specifications are still concatenated with the live query and processed again on every request.
+
+#### EngramState — retrieve, then load reusable memory
 
 ```text
 OFFLINE
@@ -76,9 +82,19 @@ set_timer specification ──> timer_base.state
 RUNTIME
 "Set a timer for 20 minutes."
         │
-        ├──> State Retriever
-        ├──> load timer_base.state
-        └──> set_timer(minutes=20)
+        ▼
+  State Retriever
+        │
+        ▼
+ [timer] [alarm] [calendar] [message] [weather]
+    ▲
+    └── timer state selected
+        │
+        ▼
+ load timer_base.state
+        │
+        ▼
+ set_timer(minutes=20)
 ```
 
 The detailed tool specification is reusable knowledge. Prompt-based inference pays the text-processing cost again for every request; EngramState compiles it once and restores the resulting recurrent state when the tool is needed.
@@ -281,7 +297,7 @@ The [technical blog](./docs/blog/) expands on design and deployment questions th
 ## Repository Layout
 
 ```text
-ES/
+EngramState/
 ├── README.md
 ├── engramstate/          # Core implementation
 ├── eval/                 # DroidCall / benchmark evaluation
