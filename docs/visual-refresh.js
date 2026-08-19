@@ -4,6 +4,12 @@
   style.href = './visual-refresh.css';
   document.head.appendChild(style);
 
+  const notes = {
+    timer: 'timer schema and constraints already compiled offline',
+    alarm: 'alarm semantics and time constraints already compiled offline',
+    calendar: 'calendar schema and date handling already compiled offline'
+  };
+
   function stateBankMarkup(selected = 'timer') {
     const items = [
       ['timer','⏱','Timer','timer_base.state'],
@@ -36,6 +42,8 @@
     document.querySelectorAll('[data-demo-state]').forEach(el => {
       el.classList.toggle('selected', el.dataset.demoState === kind);
     });
+    const note = document.getElementById('state-note');
+    if (note && notes[kind]) note.textContent = notes[kind];
   }
 
   function init() {
@@ -78,6 +86,16 @@
             <span>Loaded</span><strong>timer_base.state</strong><code>set_timer(minutes=20)</code>
           </div>
         </div>`;
+    }
+
+    const baselineSubtitle = document.querySelector('.race-lane.baseline .race-lane-title span');
+    if (baselineSubtitle) baselineSubtitle.textContent = 'Retrieve candidate tools, then prefill their specifications';
+    const promptViewport = document.querySelector('.race-lane.baseline .prompt-viewport');
+    if (promptViewport && !document.querySelector('.baseline-retrieve-strip')) {
+      const strip = document.createElement('div');
+      strip.className = 'baseline-retrieve-strip';
+      strip.innerHTML = '<span>RETRIEVER</span><strong>Top-K tools selected</strong><em>→ 985 prompt tokens</em>';
+      promptViewport.insertAdjacentElement('beforebegin', strip);
     }
 
     const stateViewport = document.querySelector('.state-viewport');
