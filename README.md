@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/engramstate-hero.svg" width="560" alt="EngramState — Load memory, not prompts" />
+<img src="docs/assets/engramstate-hero.png" width="700" alt="EngramState — Load memory, not prompts" />
 
 # EngramState
 
