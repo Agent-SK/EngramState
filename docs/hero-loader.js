@@ -64,6 +64,14 @@
     document.body.appendChild(refreshScript);
   };
 
+  const loadContact = () => {
+    if (document.querySelector('script[data-contact-section]')) return;
+    const contactScript = document.createElement('script');
+    contactScript.src = new URL('./contact.js', script.src).href;
+    contactScript.dataset.contactSection = 'true';
+    document.body.appendChild(contactScript);
+  };
+
   const loadTimingDisplayPatch = () => {
     if (document.querySelector('script[data-timing-display-patch]')) return;
     const timingScript = document.createElement('script');
@@ -72,10 +80,15 @@
     document.body.appendChild(timingScript);
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadVisualRefresh, { once: true });
-  } else {
+  const loadDomEnhancements = () => {
     loadVisualRefresh();
+    loadContact();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDomEnhancements, { once: true });
+  } else {
+    loadDomEnhancements();
   }
 
   if (document.readyState === 'complete') {
