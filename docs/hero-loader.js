@@ -56,7 +56,17 @@
     document.head.appendChild(css);
   }
 
-  const refreshScript = document.createElement('script');
-  refreshScript.src = new URL('./visual-refresh.js', script.src).href;
-  document.body.appendChild(refreshScript);
+  const loadVisualRefresh = () => {
+    if (document.querySelector('script[data-visual-refresh]')) return;
+    const refreshScript = document.createElement('script');
+    refreshScript.src = new URL('./visual-refresh.js', script.src).href;
+    refreshScript.dataset.visualRefresh = 'true';
+    document.body.appendChild(refreshScript);
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadVisualRefresh, { once: true });
+  } else {
+    loadVisualRefresh();
+  }
 })();
