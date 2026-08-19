@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Why Base and Corrective states? · EngramState</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#method">Method</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header>
+  <main>
+    <section class="article-hero article-shell">
+      <div class="article-meta">Technical note 02 · Method</div>
+      <h1>Why EngramState uses Base and Corrective states</h1>
+      <p>Most queries need the ordinary tool contract. A smaller fraction need extra knowledge about failure modes. EngramState keeps those two paths separate.</p>
+    </section>
+    <article class="article-card article-shell">
+      <p>A single tool specification can contain two very different kinds of information. The first is the stable, canonical contract of the API. The second is knowledge accumulated from cases where the model tends to fail.</p>
+
+      <h2>Base State: the common path</h2>
+      <p>The <strong>Base State</strong> represents the information that should be available for ordinary calls: tool name, description, arguments, value formats, and canonical examples.</p>
+      <p>Because this is the path used most often, EngramState keeps it focused. A successful Base attempt ends immediately with a validated function call.</p>
+
+      <h2>Corrective State: targeted repair</h2>
+      <p>The <strong>Corrective State</strong> stores harder cases and failure-oriented guidance: confusing values, parameter conventions, known error patterns, and corrective examples.</p>
+      <p>This information is useful, but forcing every request to carry it would make the common path unnecessarily heavy. EngramState instead loads it only when the Base attempt needs correction.</p>
+
+      <pre><code>User query
+   ↓
+Retrieve candidate tool
+   ↓
+Load Base State
+   ↓
+Generate call
+   ├── valid → execute
+   └── error → load Corrective State → retry</code></pre>
+
+      <div class="article-callout"><strong>The design goal is asymmetry:</strong> make ordinary cases cheap while preserving a deliberate path for difficult ones.</div>
+
+      <h2>Retries without restarting everything</h2>
+      <p>The same Top-K candidate list is traversed across attempts. EngramState does not need to rebuild a giant prompt for every retry. Each candidate's Base and Corrective states are attempted at most once within the traversal.</p>
+      <p>That structure also extends to multi-call execution: after one candidate succeeds, the search can continue from the remaining candidates rather than restarting from the beginning.</p>
+
+      <h2>Why not compile everything into one state?</h2>
+      <p>One large state could mix canonical and corrective information, but that makes every query pay for rare hard cases. Splitting the state gives the runtime a smaller common path and makes the retry behavior easier to reason about and inspect.</p>
+
+      <p><a class="back-link" href="./">← Back to technical notes</a></p>
+    </article>
+  </main>
+</body>
+</html>
