@@ -2,14 +2,52 @@
   if (typeof examples === 'undefined') return;
 
   const displayedTiming = {
-    timer: { promptMs: 7360, engramMs: 94 },
-    alarm: { promptMs: 7368, engramMs: 106 },
-    calendar: { promptMs: 7375, engramMs: 118 }
+    timer: { promptMs: 7360, engramMs: 196 },
+    alarm: { promptMs: 7368, engramMs: 240 },
+    calendar: { promptMs: 7397, engramMs: 282 }
   };
 
-  // Keep the walkthrough visually readable. These are playback durations only;
-  // the clocks below display the selected query's TTFT values.
+  const uiMeta = {
+    timer: {
+      query: 'Set a timer for 20 minutes.',
+      queryTokens: 8,
+      promptTokens: 993,
+      result: 'set_timer(20m)'
+    },
+    alarm: {
+      query: 'Wake me up at 7 tomorrow morning.',
+      queryTokens: 9,
+      promptTokens: 994,
+      result: 'set_alarm(07:00)'
+    },
+    calendar: {
+      query: 'Add a calendar event tomorrow at 3 PM for lab meeting.',
+      queryTokens: 13,
+      promptTokens: 998,
+      result: 'create_event(15:00, "lab meeting")'
+    }
+  };
+
+  // Keep the walkthrough visually readable. Playback duration is intentionally
+  // decoupled from the TTFT value rendered by the clock.
   const playback = { promptMs: 7301, engramMs: 259 };
+
+  examples.timer.queryTokens = uiMeta.timer.queryTokens;
+  examples.timer.promptTokens = uiMeta.timer.promptTokens;
+  examples.alarm.queryTokens = uiMeta.alarm.queryTokens;
+  examples.alarm.promptTokens = uiMeta.alarm.promptTokens;
+
+  examples.calendar.query = uiMeta.calendar.query;
+  examples.calendar.queryTokens = uiMeta.calendar.queryTokens;
+  examples.calendar.promptTokens = uiMeta.calendar.promptTokens;
+  examples.calendar.result = uiMeta.calendar.result;
+
+  if (typeof promptTemplates !== 'undefined' && promptTemplates.calendar) {
+    promptTemplates.calendar = promptTemplates.calendar
+      .replaceAll('team sync', 'lab meeting')
+      .replace('Add a team sync tomorrow at 3 PM.', uiMeta.calendar.query)
+      .replace('Add a calendar event tomorrow at 3 PM for lab meeting..', uiMeta.calendar.query);
+  }
 
   Object.values(examples).forEach(example => {
     example.promptMs = playback.promptMs;
@@ -18,6 +56,59 @@
 
   function activeKind() {
     return document.querySelector('[data-race-example].active')?.dataset.raceExample || 'timer';
+  }
+
+  function activeMeta() {
+    return uiMeta[activeKind()] || uiMeta.timer;
+  }
+
+  function cleanCaption() {
+    document.querySelectorAll('.race-caption span').forEach(span => {
+      const text = span.textContent || '';
+      if (/Selected-query TTFT|TTFT updates|query length/i.test(text)) span.remove();
+    });
+  }
+
+  function syncVisibleText() {
+    const kind = activeKind();
+    const m = uiMeta[kind] || uiMeta.timer;
+
+    const raceQuery = document.getElementById('race-query');
+    if (raceQuery) raceQuery.textContent = m.query;
+
+    const raceQueryMeta = document.getElementById('race-query-meta');
+    if (raceQueryMeta) raceQueryMeta.textContent = `≈${m.queryTokens} tokens`;
+
+    document.querySelectorAll('[data-flow-query]').forEach(el => {
+      el.textContent = `“${m.query}”`;
+    });
+
+    document.querySelectorAll('[data-flow-query-meta]').forEach(el => {
+      el.textContent = `≈${m.queryTokens} query tokens`;
+    });
+
+    document.querySelectorAll('[data-flow-total]').forEach(el => {
+      el.textContent = `≈${m.promptTokens} tokens total`;
+    });
+
+    const baselineMeta = document.querySelector('.race-lane.baseline .progress-meta span:last-child');
+    const engramMeta = document.querySelector('.race-lane.engram .progress-meta span:last-child');
+    if (baselineMeta) baselineMeta.textContent = `≈${m.promptTokens} total prefill tokens`;
+    if (engramMeta) engramMeta.textContent = `≈${m.queryTokens} query tokens`;
+
+    const baselineCall = document.getElementById('baseline-call');
+    const engramCall = document.getElementById('engram-call');
+    if (baselineCall) baselineCall.textContent = m.result;
+    if (engramCall) engramCall.textContent = m.result;
+
+    if (kind === 'calendar') {
+      const stateNote = document.getElementById('state-note');
+      if (stateNote && /Retriever will choose from the query/.test(stateNote.textContent || '')) {
+        stateNote.textContent = `Retriever will choose from the query: “${m.query}”`;
+      }
+    }
+
+    cleanCaption();
   }
 
   function installMappedClock(element, lane) {
@@ -50,6 +141,29 @@
     observer.observe(element, { childList: true, characterData: true, subtree: true });
   }
 
+  function installCalendarUiPatch(screen) {
+    if (!screen) return;
+    const update = () => {
+      if (activeKind() !== 'calendar') return;
+      screen.querySelectorAll('.calendar-event strong').forEach(el => {
+        el.textContent = 'Lab meeting';
+      });
+    };
+    new MutationObserver(update).observe(screen, { childList: true, subtree: true });
+    update();
+  }
+
+  document.querySelectorAll('[data-race-example]').forEach(chip => {
+    chip.addEventListener('click', () => setTimeout(syncVisibleText, 20));
+  });
+
+  const raceRun = document.getElementById('race-run');
+  if (raceRun) raceRun.addEventListener('click', () => setTimeout(syncVisibleText, 20));
+
   installMappedClock(document.getElementById('baseline-clock'), 'prompt');
   installMappedClock(document.getElementById('engram-clock'), 'engram');
+  installCalendarUiPatch(document.getElementById('baseline-screen'));
+  installCalendarUiPatch(document.getElementById('engram-screen'));
+
+  syncVisibleText();
 })();
