@@ -1,47 +1,23 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Storing recurrent states at 4 bits · EngramState</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../style.css" />
-  <link rel="stylesheet" href="../brand.css" />
-</head>
-<body>
-  <div class="noise"></div>
-  <header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#results">Results</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header>
-  <main>
-    <section class="article-hero article-shell">
-      <div class="article-meta">Technical note 03 · Deployment</div>
-      <h1>Storing recurrent states at 4 bits</h1>
-      <p>Reusable states remove repeated prompt compute, but they introduce persistent storage. Quantization is what makes that trade practical at device scale.</p>
-    </section>
-    <article class="article-card article-shell">
-      <p>EngramState stores a pair of recurrent states for each tool: Base and Corrective. Keeping those tensors in full FP16 precision is simple, but the storage cost grows linearly with the number of tools.</p>
-
-      <h2>The storage trade</h2>
-      <p>For RWKV-7 1.5B, the combined FP16 Base + Corrective representation is approximately <strong>24.76 MiB per tool</strong>. At 100 tools, that would already be roughly 2.42 GiB.</p>
-      <p>That is too expensive for a design intended to scale across a mobile tool catalog.</p>
-
-      <h2>4-bit per-channel quantization</h2>
-      <p>EngramState applies <strong>4-bit per-channel linear quantization</strong> to both stored states. This reduces the combined storage to approximately <strong>6.19 MiB per tool</strong>, a 4× reduction from FP16.</p>
-      <pre><code>RWKV-7 1.5B, Base + Corrective
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>How far can recurrent states be compressed? · EngramState</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../brand.css"></head><body><div class="noise"></div><header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#results">Results</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header><main>
+<section class="article-hero article-shell"><div class="article-meta">Technical note 03 · Compression</div><h1>How far can recurrent states be compressed?</h1><p>State reuse removes repeated prompt compute, but persistent state files become a new systems cost. Quantization determines whether that trade is practical on a phone.</p></section>
+<article class="article-card article-shell">
+<p>EngramState stores one Base State and one Corrective State per tool. For RWKV-7 1.5B, the combined FP16 representation is approximately <strong>24.76 MiB per tool</strong>. At 100 tools, that would already exceed 2.4 GiB.</p>
+<h2>Why channel-wise quantization?</h2>
+<p>The WKV recurrent state is not a static model weight. It is a dynamically generated activation, and its channels can have very different value ranges. EngramState therefore quantizes channels independently, using a separate range per channel rather than one global scale.</p>
+<p>This is also why weight-oriented methods such as GPTQ do not directly transfer: GPTQ relies on statistics for static weights, whereas a recurrent state is produced dynamically from a specific prompt. AWQ's intuition—protect important channels through scaling—is closer to what channel-wise state quantization already exploits.</p>
+<h2>Four bits: the practical default</h2>
+<pre><code>RWKV-7 1.5B · Base + Corrective
 FP16  : 24.76 MiB / tool
 4-bit :  6.19 MiB / tool</code></pre>
-
-      <div class="article-callout"><strong>Why 4 bits?</strong> The choice is practical rather than a claim that lower precision is impossible. Four-bit storage is byte-friendly — two values fit naturally in one byte — and is well supported by mobile inference stacks.</div>
-
-      <h2>What about 3 bits?</h2>
-      <p>Three-bit storage can reduce footprint further, and our experiments show it can remain close to the higher-precision baseline. The drawback is implementation complexity: 3-bit values are not byte-aligned, so packing and unpacking become more awkward on real devices.</p>
-      <p>For a research system targeting practical deployment, 4-bit storage provides a useful balance between compactness, implementation simplicity, and accuracy.</p>
-
-      <h2>Storage is only one side of the design</h2>
-      <p>The runtime does not need to load every stored state. EngramState retrieves a small candidate set and selectively loads states as needed. Persistent storage therefore scales with the catalog, while active runtime state remains tied to the retrieved candidates.</p>
-
-      <p><a class="back-link" href="./">← Back to technical notes</a></p>
-    </article>
-  </main>
-</body>
-</html>
+<p>Four-bit storage gives an approximately 4× reduction. The choice is practical rather than a claim that four bits are the mathematical limit.</p>
+<h2>What happens at 3 bits?</h2>
+<table class="comparison-table"><thead><tr><th>Model</th><th>Baseline</th><th>RTN</th><th>Outlier scaling</th><th>Channel-wise</th></tr></thead><tbody><tr><td>RWKV-7 0.4B</td><td>71.3</td><td>6.0</td><td>4.7</td><td><strong>70.0</strong></td></tr><tr><td>RWKV-7 1.5B</td><td>65.7</td><td>9.0</td><td>11.3</td><td><strong>65.0</strong></td></tr><tr><td>RWKV-7 2.9B</td><td>81.0</td><td>19.0</td><td>28.3</td><td><strong>81.0</strong></td></tr></tbody></table>
+<p>At 3 bits, naïve RTN and simple outlier scaling collapse badly, while channel-wise quantization stays within <strong>1.3 percentage points</strong> of the baseline across the reported models.</p>
+<h2>And at 2 bits?</h2>
+<table class="comparison-table"><thead><tr><th>Model</th><th>Baseline</th><th>RTN</th><th>Outlier scaling</th><th>Channel-wise</th></tr></thead><tbody><tr><td>RWKV-7 0.4B</td><td>71.3</td><td>3.3</td><td>1.3</td><td>68.3</td></tr><tr><td>RWKV-7 1.5B</td><td>65.7</td><td>6.7</td><td>3.0</td><td>61.3</td></tr><tr><td>RWKV-7 2.9B</td><td>81.0</td><td>2.3</td><td>6.0</td><td>78.3</td></tr></tbody></table>
+<p>Two-bit channel-wise storage remains dramatically better than the naïve alternatives, but the accuracy drop is larger.</p>
+<div class="article-callout"><strong>Why 4-bit in the released design?</strong> Four-bit values are naturally byte-aligned—two values per byte—and fit existing mobile inference stacks cleanly. Three-bit packing can save more storage, but it complicates packing/unpacking and deployment kernels.</div>
+<h2>Storage vs runtime memory</h2>
+<p>The state repository grows linearly with the number of tools, but EngramState does not keep the entire repository resident during inference. The retriever selects candidates and only the chosen state is loaded for the current attempt. Persistent storage therefore scales with the catalog while active state memory remains bounded by the execution path.</p>
+<p><a class="back-link" href="./">← Back to technical notes</a></p></article></main></body></html>
