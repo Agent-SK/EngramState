@@ -39,6 +39,8 @@
     }
   };
 
+  let selectionTimer = null;
+
   function stateBankMarkup(selected = 'timer') {
     const items = [
       ['timer','⏱','Timer','timer_base.state'],
@@ -53,7 +55,7 @@
       </div>`).join('');
   }
 
-  function demoStateBankMarkup(selected = 'timer') {
+  function demoStateBankMarkup() {
     const items = [
       ['timer','⏱','Timer'],
       ['alarm','⏰','Alarm'],
@@ -62,7 +64,7 @@
       ['weather','☁','Weather']
     ];
     return items.map(([kind, icon, label]) => `
-      <div class="demo-state-item ${kind === selected ? 'selected' : ''}" data-demo-state="${kind}">
+      <div class="demo-state-item" data-demo-state="${kind}">
         <span class="state-icon">${icon}</span><strong>${label}</strong>
       </div>`).join('');
   }
@@ -71,17 +73,8 @@
     return document.querySelector('[data-race-example].active')?.dataset.raceExample || 'timer';
   }
 
-  function updateDemoSelection(kind) {
+  function updateFlowMeta(kind) {
     const m = meta[kind] || meta.timer;
-
-    document.querySelectorAll('[data-demo-state]').forEach(el => {
-      el.classList.toggle('selected', el.dataset.demoState === kind);
-    });
-
-    const stateName = document.getElementById('state-name');
-    const stateNote = document.getElementById('state-note');
-    if (stateName) stateName.textContent = m.state;
-    if (stateNote) stateNote.textContent = m.note;
 
     document.querySelectorAll('[data-flow-query]').forEach(el => el.textContent = `“${m.query}”`);
     document.querySelectorAll('[data-flow-query-meta]').forEach(el => {
@@ -99,9 +92,43 @@
     const engramMeta = document.querySelector('.race-lane.engram .progress-meta span:last-child');
     if (baselineMeta) baselineMeta.textContent = `≈${985 + m.tokens} total prefill tokens`;
     if (engramMeta) engramMeta.textContent = `≈${m.tokens} query tokens`;
+  }
 
-    const demoHeader = document.querySelector('.demo-state-header b');
-    if (demoHeader) demoHeader.textContent = `Retriever → ${m.selected}`;
+  function clearDemoSelection(kind) {
+    const m = meta[kind] || meta.timer;
+    const viewport = document.querySelector('.state-viewport.state-repository-view');
+    viewport?.classList.remove('has-selection');
+
+    document.querySelectorAll('[data-demo-state]').forEach(el => el.classList.remove('selected'));
+
+    const header = document.querySelector('.demo-state-header b');
+    if (header) header.textContent = 'Run to retrieve';
+
+    const mark = document.querySelector('.demo-state-selection .selection-mark');
+    const stateName = document.getElementById('state-name');
+    const stateNote = document.getElementById('state-note');
+    if (mark) mark.textContent = '…';
+    if (stateName) stateName.textContent = 'No state selected';
+    if (stateNote) stateNote.textContent = `Retriever will choose from the query: “${m.query}”`;
+  }
+
+  function revealDemoSelection(kind) {
+    const m = meta[kind] || meta.timer;
+    const viewport = document.querySelector('.state-viewport.state-repository-view');
+    viewport?.classList.add('has-selection');
+
+    document.querySelectorAll('[data-demo-state]').forEach(el => {
+      el.classList.toggle('selected', el.dataset.demoState === kind);
+    });
+
+    const header = document.querySelector('.demo-state-header b');
+    const mark = document.querySelector('.demo-state-selection .selection-mark');
+    const stateName = document.getElementById('state-name');
+    const stateNote = document.getElementById('state-note');
+    if (header) header.textContent = `Retriever → ${m.selected}`;
+    if (mark) mark.textContent = '↘';
+    if (stateName) stateName.textContent = m.state;
+    if (stateNote) stateNote.textContent = m.note;
   }
 
   function init() {
@@ -133,32 +160,43 @@
           <span class="state-concept-arrow">spec → state</span>
         </div>
 
-        <div class="concept-journey">
-          <div class="concept-step concept-query">
-            <span>1 · User query</span>
-            <strong>“Set a timer for 20 minutes.”</strong>
-            <small>≈8 query tokens</small>
+        <div class="concept-journey concept-journey-stacked">
+          <div class="concept-top-row">
+            <div class="concept-step concept-query">
+              <span>1 · User query</span>
+              <strong>“Set a timer for 20 minutes.”</strong>
+              <small>≈8 query tokens</small>
+            </div>
+            <div class="concept-arrow">→</div>
+            <div class="concept-step concept-retriever">
+              <span>2 · State Retriever</span>
+              <strong>Top-K candidate states</strong>
+              <small>Timer is the best match</small>
+            </div>
           </div>
-          <div class="concept-arrow">→</div>
-          <div class="concept-step concept-retriever">
-            <span>2 · State Retriever</span>
-            <strong>Top-K candidates</strong>
-            <small>Timer selected</small>
-          </div>
-          <div class="concept-arrow">→</div>
+
+          <div class="concept-down">↓</div>
+
           <div class="concept-step concept-repository">
-            <div class="state-bank-title"><span>3 · State repository</span><span>one selected</span></div>
+            <div class="state-bank-title"><span>3 · State repository</span><span>Timer selected</span></div>
             <div class="state-bank">${stateBankMarkup('timer')}</div>
           </div>
-          <div class="concept-arrow">→</div>
-          <div class="concept-step concept-load">
-            <span>4 · Load selected state</span>
-            <strong>timer_base.state</strong>
-            <small>only the selected memory is restored</small>
+
+          <div class="concept-down">↓</div>
+
+          <div class="concept-bottom-row">
+            <div class="concept-step concept-load">
+              <span>4 · Load selected state</span>
+              <strong>timer_base.state</strong>
+              <small>restore only the selected memory</small>
+            </div>
+            <div class="concept-arrow">→</div>
+            <div class="concept-step concept-generate">
+              <span>5 · Generate</span>
+              <strong>set_timer(minutes=20)</strong>
+              <small>function call from query + loaded state</small>
+            </div>
           </div>
-        </div>
-        <div class="state-selected-result state-selected-result-v2">
-          <span>Generate</span><code>set_timer(minutes=20)</code>
         </div>`;
     }
 
@@ -210,7 +248,7 @@
           <div class="lane-flow-step retriever-step">
             <span>State Retriever</span>
             <strong>Top-K states</strong>
-            <small>select <b data-flow-selected>Timer</b></small>
+            <small>select from stored memories</small>
           </div>
           <div class="lane-flow-arrow">↓</div>
         </div>`);
@@ -228,12 +266,12 @@
     if (stateViewport) {
       stateViewport.classList.add('state-repository-view');
       stateViewport.innerHTML = `
-        <div class="demo-state-header"><span>Candidate state repository</span><b>Retriever → Timer</b></div>
-        <div class="demo-state-bank">${demoStateBankMarkup('timer')}</div>
+        <div class="demo-state-header"><span>Candidate state repository</span><b>Run to retrieve</b></div>
+        <div class="demo-state-bank">${demoStateBankMarkup()}</div>
         <div class="demo-state-selection">
-          <div class="selection-mark">↘</div>
-          <strong id="state-name">timer_base.state</strong>
-          <span id="state-note">timer schema and constraints already compiled offline</span>
+          <div class="selection-mark">…</div>
+          <strong id="state-name">No state selected</strong>
+          <span id="state-note">Run comparison to retrieve from the live query.</span>
         </div>`;
     }
 
@@ -246,25 +284,48 @@
     }
 
     document.querySelectorAll('[data-race-example]').forEach(chip => {
-      chip.addEventListener('click', () => updateDemoSelection(chip.dataset.raceExample));
+      chip.addEventListener('click', () => {
+        if (selectionTimer) clearTimeout(selectionTimer);
+        const kind = chip.dataset.raceExample;
+        setTimeout(() => {
+          updateFlowMeta(kind);
+          clearDemoSelection(kind);
+        }, 0);
+      });
     });
 
     const runButton = document.getElementById('race-run');
     if (runButton) {
       runButton.addEventListener('click', () => {
-        const m = meta[activeKind()] || meta.timer;
-        const baselineStage = document.getElementById('baseline-stage');
-        const baselineWait = document.getElementById('baseline-wait');
-        const engramStage = document.getElementById('engram-stage');
-        const engramWait = document.getElementById('engram-wait');
-        if (baselineStage) baselineStage.textContent = 'Prefilling user query + retrieved tool specifications…';
-        if (baselineWait) baselineWait.textContent = `Waiting for ≈${985 + m.tokens}-token prompt prefill…`;
-        if (engramStage) engramStage.textContent = `State Retriever → ${m.selected} → load selected state…`;
-        if (engramWait) engramWait.textContent = `Restoring ${m.state}…`;
-      });
+        if (selectionTimer) clearTimeout(selectionTimer);
+        const kind = activeKind();
+        const m = meta[kind] || meta.timer;
+
+        clearDemoSelection(kind);
+
+        setTimeout(() => {
+          const baselineStage = document.getElementById('baseline-stage');
+          const baselineWait = document.getElementById('baseline-wait');
+          const engramStage = document.getElementById('engram-stage');
+          const engramWait = document.getElementById('engram-wait');
+          if (baselineStage) baselineStage.textContent = 'Prefilling user query + retrieved tool specifications…';
+          if (baselineWait) baselineWait.textContent = `Waiting for ≈${985 + m.tokens}-token prompt prefill…`;
+          if (engramStage) engramStage.textContent = 'State Retriever is ranking candidate memories…';
+          if (engramWait) engramWait.textContent = `Matching “${m.query}” to the state repository…`;
+        }, 0);
+
+        selectionTimer = setTimeout(() => {
+          revealDemoSelection(kind);
+          const engramStage = document.getElementById('engram-stage');
+          const engramWait = document.getElementById('engram-wait');
+          if (engramStage) engramStage.textContent = `${m.selected} state selected → loading…`;
+          if (engramWait) engramWait.textContent = `Restoring ${m.state}…`;
+        }, 120);
+      }, true);
     }
 
-    updateDemoSelection('timer');
+    updateFlowMeta('timer');
+    clearDemoSelection('timer');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
