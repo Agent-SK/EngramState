@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Why repeated tool prompts are expensive · EngramState</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#method">Method</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header>
+  <main>
+    <section class="article-hero article-shell">
+      <div class="article-meta">Technical note 01 · Motivation</div>
+      <h1>Why repeated tool prompts are expensive</h1>
+      <p>Tool descriptions are mostly static. A mobile agent should not have to reread the same instructions every time the user asks for something new.</p>
+    </section>
+    <article class="article-card article-shell">
+      <p>Function-calling models usually receive a user query together with a collection of tool specifications. Those specifications describe function names, arguments, formats, constraints, and examples. They are important — but they rarely change from one interaction to the next.</p>
+
+      <h2>The repeated-prefill problem</h2>
+      <p>In a conventional prompt-based pipeline, static tool text is concatenated with every live query. Even a very short request can therefore trigger a long prefill before the model generates its first output token.</p>
+      <pre><code>User query + Tool 1 spec + Tool 2 spec + ... + Tool N spec
+                         ↓
+                     Prefill
+                         ↓
+                    Tool call</code></pre>
+      <p>For cloud-scale serving this can be absorbed by large accelerators and batching. On a phone, repeated context processing becomes much more visible because latency, memory bandwidth, and energy are constrained.</p>
+
+      <div class="article-callout"><strong>EngramState asks a different question:</strong> if the tool instructions are static, can the model consume them once and reuse what it learned at runtime?</div>
+
+      <h2>Compile knowledge into model state</h2>
+      <p>Stateful language models expose a recurrent state that summarizes the prefix processed so far. EngramState treats that state as a reusable deployment artifact. A tool specification is consumed offline in a single forward pass, the final recurrent state is retained, and the logits are discarded.</p>
+      <p>At runtime, the live user query retrieves the relevant stored state. The model can then continue from the restored state rather than reprocessing the entire textual specification.</p>
+      <pre><code>Offline
+Tool specification → Stateful LM → Reusable tool state
+
+Runtime
+User query → Retrieve state → Load → Generate tool call</code></pre>
+
+      <h2>What changes at runtime?</h2>
+      <p>In our representative RWKV-7 1.5B DroidCall setting, the live prompt drops from <strong>985 tokens to 22 tokens</strong>. Corresponding TTFT drops from <strong>7.301 s to 0.259 s</strong>.</p>
+      <p>The important shift is not merely prompt compression. Static knowledge moves out of the repeated inference path entirely and becomes reusable model memory.</p>
+
+      <h2>Why this is useful for on-device agents</h2>
+      <p>Local agents often operate over a stable catalog of device capabilities: alarms, timers, calendars, settings, media controls, and application APIs. Those capabilities are natural candidates for offline compilation because the descriptions change much less frequently than user queries.</p>
+      <p>EngramState therefore trades repeated prompt compute for selectively loaded persistent state — a trade that is particularly attractive when first-token latency matters.</p>
+
+      <p><a class="back-link" href="./">← Back to technical notes</a></p>
+    </article>
+  </main>
+</body>
+</html>
