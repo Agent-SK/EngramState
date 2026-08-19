@@ -10,7 +10,11 @@ const examples = {
     state: 'timer_base.state',
     kind: 'timer',
     title: 'Timer',
-    stateNote: 'timer schema and constraints already compiled offline'
+    stateNote: 'timer schema and constraints already compiled offline',
+    queryTokens: 8,
+    promptTokens: 993,
+    promptMs: 7360,
+    engramMs: 94
   },
   alarm: {
     query: 'Wake me up at 7 tomorrow morning.',
@@ -18,7 +22,11 @@ const examples = {
     state: 'alarm_base.state',
     kind: 'alarm',
     title: 'Alarm',
-    stateNote: 'alarm semantics and time constraints already compiled offline'
+    stateNote: 'alarm semantics and time constraints already compiled offline',
+    queryTokens: 9,
+    promptTokens: 994,
+    promptMs: 7368,
+    engramMs: 106
   },
   calendar: {
     query: 'Add a team sync tomorrow at 3 PM.',
@@ -26,7 +34,11 @@ const examples = {
     state: 'calendar_base.state',
     kind: 'calendar',
     title: 'Calendar',
-    stateNote: 'calendar schema and date handling already compiled offline'
+    stateNote: 'calendar schema and date handling already compiled offline',
+    queryTokens: 10,
+    promptTokens: 995,
+    promptMs: 7375,
+    engramMs: 118
   }
 };
 
@@ -181,7 +193,7 @@ if (demo) {
           </div>
           <div class="prompt-viewport"><div id="prompt-scroll" class="prompt-scroll"></div></div>
           <div class="progress-wrap">
-            <div class="progress-meta"><span id="baseline-stage">Waiting to run</span><span>985 prompt tokens</span></div>
+            <div class="progress-meta"><span id="baseline-stage">Waiting to run</span><span>≈993 total prefill tokens</span></div>
             <div class="progress-track"><div class="progress-fill"></div></div>
           </div>
           <div class="action-stage">
@@ -203,7 +215,7 @@ if (demo) {
             </div>
           </div>
           <div class="progress-wrap">
-            <div class="progress-meta"><span id="engram-stage">Waiting to run</span><span>22 live tokens</span></div>
+            <div class="progress-meta"><span id="engram-stage">Waiting to run</span><span>≈8 query tokens</span></div>
             <div class="progress-track"><div class="progress-fill"></div></div>
           </div>
           <div class="action-stage">
@@ -215,7 +227,7 @@ if (demo) {
       </div>
 
       <div class="race-caption">
-        <span><b>Playback uses representative TTFT:</b> 7.301 s vs 0.259 s.</span>
+        <span>TTFT updates with the selected query length.</span>
         <span>Device UI is a visual simulation; the Android demo will invoke real actions.</span>
       </div>
     </div>
@@ -265,6 +277,10 @@ if (demo) {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  }
+
+  function formatSeconds(ms) {
+    return `${(ms / 1000).toFixed(3)} s`;
   }
 
   function deviceMarkup(example) {
@@ -345,10 +361,17 @@ if (demo) {
     const ex = examples[active];
     query.textContent = ex.query;
     promptScroll.innerHTML = promptTemplates[active];
-    document.getElementById('state-name').textContent = ex.state;
-    stateNote.textContent = ex.stateNote;
+    const stateName = document.getElementById('state-name');
+    if (stateName) stateName.textContent = ex.state;
+    if (stateNote) stateNote.textContent = ex.stateNote;
     document.getElementById('baseline-call').textContent = ex.result;
     document.getElementById('engram-call').textContent = ex.result;
+    const baselineMeta = document.querySelector('.race-lane.baseline .progress-meta span:last-child');
+    const engramMeta = document.querySelector('.race-lane.engram .progress-meta span:last-child');
+    if (baselineMeta) baselineMeta.textContent = `≈${ex.promptTokens} total prefill tokens`;
+    if (engramMeta) engramMeta.textContent = `≈${ex.queryTokens} query tokens`;
+    baselineLane.style.setProperty('--baseline-duration', `${ex.promptMs}ms`);
+    engramLane.style.setProperty('--engram-duration', `${ex.engramMs}ms`);
     resetRace();
   }
 
@@ -367,7 +390,7 @@ if (demo) {
       const elapsed = Math.min((performance.now() - start) / 1000, duration / 1000);
       element.textContent = `${elapsed.toFixed(3)} s`;
       if (elapsed >= duration / 1000) clearInterval(id);
-    }, 32);
+    }, 24);
     intervals.push(id);
   }
 
@@ -382,28 +405,31 @@ if (demo) {
 
   run.addEventListener('click', () => {
     resetRace();
+    const ex = examples[active];
     run.disabled = true;
     run.textContent = 'Race running…';
 
+    baselineLane.style.setProperty('--baseline-duration', `${ex.promptMs}ms`);
+    engramLane.style.setProperty('--engram-duration', `${ex.engramMs}ms`);
     baselineLane.classList.add('running');
     engramLane.classList.add('running');
-    baselineStage.textContent = 'Prefilling long tool prompt…';
-    engramStage.textContent = 'Retrieving + loading state…';
-    baselineWait.textContent = 'Waiting for 985-token prefill…';
-    engramWait.textContent = 'Restoring recurrent state…';
+    baselineStage.textContent = 'Prefilling user query + retrieved tool specifications…';
+    engramStage.textContent = 'Retrieving + loading selected state…';
+    baselineWait.textContent = `Waiting for ≈${ex.promptTokens}-token prompt prefill…`;
+    engramWait.textContent = `Restoring ${ex.state}…`;
 
-    animateClock(baselineClock, 7301);
-    animateClock(engramClock, 259);
-
-    later(() => {
-      revealAction(engramScreen, engramResult, engramStage, engramWait, engramClock, '0.259 s');
-    }, 259);
+    animateClock(baselineClock, ex.promptMs);
+    animateClock(engramClock, ex.engramMs);
 
     later(() => {
-      revealAction(baselineScreen, baselineResult, baselineStage, baselineWait, baselineClock, '7.301 s');
+      revealAction(engramScreen, engramResult, engramStage, engramWait, engramClock, formatSeconds(ex.engramMs));
+    }, ex.engramMs);
+
+    later(() => {
+      revealAction(baselineScreen, baselineResult, baselineStage, baselineWait, baselineClock, formatSeconds(ex.promptMs));
       run.disabled = false;
       run.textContent = 'Run again';
-    }, 7301);
+    }, ex.promptMs);
   });
 
   renderExample();
