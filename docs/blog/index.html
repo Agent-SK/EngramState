@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Technical notes from the EngramState project." />
+  <title>EngramState · Technical Notes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="nav shell">
+    <a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a>
+    <nav>
+      <a href="../#overview">Overview</a>
+      <a href="../#method">Method</a>
+      <a href="../#results">Results</a>
+      <a href="../#demo">Demo</a>
+      <a href="./">Blog</a>
+      <a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="blog-hero shell">
+      <div class="section-kicker">ENGRAMSTATE · TECHNICAL NOTES</div>
+      <h1>Notes from building<br>a state-based tool caller.</h1>
+      <p>Short explanations of the design choices behind EngramState: why repeated tool prompts are costly, why the method separates Base and Corrective states, and how recurrent states are stored for mobile deployment.</p>
+    </section>
+
+    <section class="blog-list shell">
+      <a class="blog-card" href="./why-reusable-states.html">
+        <time>Technical note 01</time>
+        <div><h2>Why repeated tool prompts are expensive</h2><p>Static tool knowledge is useful, but repeatedly prefilling it is not. This note motivates compiling it into reusable recurrent states.</p></div>
+        <span>→</span>
+      </a>
+      <a class="blog-card" href="./base-corrective.html">
+        <time>Technical note 02</time>
+        <div><h2>Why EngramState uses Base and Corrective states</h2><p>Separate the common path from difficult cases so most requests stay lightweight while targeted correction remains available.</p></div>
+        <span>→</span>
+      </a>
+      <a class="blog-card" href="./four-bit-states.html">
+        <time>Technical note 03</time>
+        <div><h2>Storing recurrent states at 4 bits</h2><p>State reuse trades prompt compute for persistent storage. Quantization makes that trade practical on mobile hardware.</p></div>
+        <span>→</span>
+      </a>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <div><b>EngramState</b><span>Technical notes on reusable recurrent states.</span></div>
+    <p><a class="back-link" href="../">← Project homepage</a></p>
+  </footer>
+</body>
+</html>
