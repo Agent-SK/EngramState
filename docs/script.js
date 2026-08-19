@@ -6,37 +6,32 @@ document.head.appendChild(demoStyles);
 const examples = {
   timer: {
     query: 'Set a timer for 20 minutes.',
-    call: 'set_timer(minutes=20)',
-    screenTitle: 'Timer',
-    digits: '20:00',
-    toast: '20:00 timer started',
     result: 'set_timer(20m)',
     state: 'timer_base.state',
-    promptFocus: 'set_timer'
+    kind: 'timer',
+    title: 'Timer',
+    stateNote: 'timer schema and constraints already compiled offline'
   },
   alarm: {
     query: 'Wake me up at 7 tomorrow morning.',
-    call: 'set_alarm(time="07:00")',
-    screenTitle: 'Alarm',
-    digits: '07:00',
-    toast: 'Alarm set for 7:00 AM',
     result: 'set_alarm(07:00)',
     state: 'alarm_base.state',
-    promptFocus: 'set_alarm'
+    kind: 'alarm',
+    title: 'Alarm',
+    stateNote: 'alarm semantics and time constraints already compiled offline'
   },
   calendar: {
     query: 'Add a team sync tomorrow at 3 PM.',
-    call: 'create_event(time="15:00", title="team sync")',
-    screenTitle: 'Calendar',
-    digits: '15:00',
-    toast: 'Team sync added',
-    result: 'create_event(15:00)',
+    result: 'create_event(15:00, "team sync")',
     state: 'calendar_base.state',
-    promptFocus: 'create_event'
+    kind: 'calendar',
+    title: 'Calendar',
+    stateNote: 'calendar schema and date handling already compiled offline'
   }
 };
 
-const longPrompt = `<span class="schema-key">[SYSTEM]</span> You are an on-device assistant. Select the correct tool and emit a valid function call.
+const promptTemplates = {
+  timer: `<span class="schema-key">[SYSTEM]</span> You are an on-device assistant. Select the correct tool and emit a valid function call.
 
 <span class="schema-key">tools:</span>
   - name: <span class="schema-value">set_timer</span>
@@ -44,13 +39,49 @@ const longPrompt = `<span class="schema-key">[SYSTEM]</span> You are an on-devic
     arguments:
       minutes: integer, required
       seconds: integer, optional
+      label: string, optional
     constraints:
       - normalize relative duration to minutes/seconds
       - reject negative values
-      - preserve exact user intent
+      - preserve the exact requested duration
     examples:
       "twenty minutes" -> {"minutes":20}
       "90 seconds" -> {"minutes":1,"seconds":30}
+
+  - name: <span class="schema-value">set_alarm</span>
+    description: Create an alarm at an absolute local time.
+    arguments: time, repeat, label
+    constraints:
+      - resolve tomorrow vs today
+      - use local device timezone
+      - preserve AM/PM semantics
+
+  - name: <span class="schema-value">create_event</span>
+    description: Add a calendar event.
+    arguments: title, start_time, end_time, attendees
+    constraints:
+      - resolve relative dates
+      - preserve event title
+      - do not invent attendees
+
+  - name: send_message
+    description: Send a message to a known contact.
+
+  - name: get_weather
+    description: Get weather for a requested location and date.
+
+<span class="schema-key">canonical_examples:</span>
+... repeated descriptions, formats, edge cases, normalization rules,
+and function-call examples for all tools ...
+
+<span class="schema-key">user_query:</span> Set a timer for 20 minutes.`,
+
+  alarm: `<span class="schema-key">[SYSTEM]</span> Select the correct mobile tool and emit exactly one valid function call.
+
+<span class="schema-key">tools:</span>
+  - name: set_timer
+    description: Start a countdown timer.
+    arguments: minutes, seconds, label
 
   - name: <span class="schema-value">set_alarm</span>
     description: Create an alarm at an absolute local time.
@@ -62,6 +93,34 @@ const longPrompt = `<span class="schema-key">[SYSTEM]</span> You are an on-devic
       - resolve tomorrow vs today
       - use local device timezone
       - preserve AM/PM semantics
+      - map "morning" to the requested local time
+    examples:
+      "wake me at seven tomorrow" -> {"time":"07:00"}
+
+  - name: create_event
+    description: Add a calendar event.
+    arguments: title, start_time, end_time, attendees
+
+  - name: send_message
+    description: Send a message to a known contact.
+
+  - name: get_weather
+    description: Retrieve weather information.
+
+<span class="schema-key">canonical_examples:</span>
+... repeated descriptions, value formats, time parsing rules,
+edge cases, safety constraints, and examples ...
+
+<span class="schema-key">user_query:</span> Wake me up at 7 tomorrow morning.`,
+
+  calendar: `<span class="schema-key">[SYSTEM]</span> Select the correct mobile tool and emit exactly one valid function call.
+
+<span class="schema-key">tools:</span>
+  - name: set_timer
+    description: Start a countdown timer.
+
+  - name: set_alarm
+    description: Create an alarm at an absolute local time.
 
   - name: <span class="schema-value">create_event</span>
     description: Add a calendar event.
@@ -71,27 +130,26 @@ const longPrompt = `<span class="schema-key">[SYSTEM]</span> You are an on-devic
       end_time: ISO-8601, optional
       attendees: array, optional
     constraints:
-      - resolve relative dates
+      - resolve relative dates using local device time
+      - preserve PM/AM semantics
+      - preserve the event title
       - do not invent attendees
-      - preserve event title
+    examples:
+      "team sync tomorrow at 3 PM"
+      -> {"title":"team sync","start_time":"tomorrow 15:00"}
 
-  - name: <span class="schema-value">send_message</span>
+  - name: send_message
     description: Send a message to a known contact.
-    arguments: recipient, body
-    safety: require recipient resolution before execution
 
-  - name: <span class="schema-value">get_weather</span>
-    description: Get weather for a requested location and date.
-    arguments: location, date
-
-<span class="schema-key">output_format:</span>
-Return exactly one JSON function call with no prose.
+  - name: get_weather
+    description: Retrieve weather information.
 
 <span class="schema-key">canonical_examples:</span>
-... repeated tool descriptions, value formats, hard cases,
-normalization rules, and function-call examples ...
+... repeated descriptions, date formats, timezone rules,
+edge cases, and function-call examples ...
 
-<span class="schema-key">user_query:</span>`;
+<span class="schema-key">user_query:</span> Add a team sync tomorrow at 3 PM.`
+};
 
 const demo = document.getElementById('demo');
 
@@ -99,7 +157,7 @@ if (demo) {
   demo.innerHTML = `
     <div class="section-kicker">04 · INTERACTIVE WALKTHROUGH</div>
     <h2>Same action.<br>Very different wait.</h2>
-    <p class="section-copy">Run the same request through both paths. The prompt baseline visibly reads the long tool specification before acting, while EngramState restores reusable tool knowledge and reaches the device action almost immediately.</p>
+    <p class="section-copy">Run the same request through both paths. The prompt baseline visibly reads a long tool specification before acting, while EngramState restores reusable tool knowledge and reaches the device action almost immediately.</p>
 
     <div class="race-demo">
       <div class="race-head">
@@ -121,23 +179,14 @@ if (demo) {
             <div class="race-lane-title"><strong>Prompt baseline</strong><span>Prefill tool specifications every request</span></div>
             <div class="race-time"><strong id="baseline-clock">0.000 s</strong><span>TTFT</span></div>
           </div>
-          <div class="prompt-viewport">
-            <div id="prompt-scroll" class="prompt-scroll">${longPrompt}</div>
-          </div>
+          <div class="prompt-viewport"><div id="prompt-scroll" class="prompt-scroll"></div></div>
           <div class="progress-wrap">
             <div class="progress-meta"><span id="baseline-stage">Waiting to run</span><span>985 prompt tokens</span></div>
             <div class="progress-track"><div class="progress-fill"></div></div>
           </div>
           <div class="action-stage">
             <div class="action-wait"><b></b><span id="baseline-wait">Device action waits for prefill</span></div>
-            <div id="baseline-screen" class="android-screen">
-              <div class="android-status"><span>12:42</span><span>● ● ●</span></div>
-              <div id="baseline-screen-title" class="clock-title">Timer</div>
-              <div id="baseline-digits" class="timer-digits">20:00</div>
-              <div class="timer-ring"></div>
-              <div class="timer-caption">Running on device</div>
-              <div id="baseline-toast" class="android-toast">20:00 timer started</div>
-            </div>
+            <div id="baseline-screen" class="device-screen"></div>
           </div>
           <div id="baseline-result" class="race-result"><span>Function call</span><strong id="baseline-call">set_timer(20m)</strong></div>
         </section>
@@ -150,7 +199,7 @@ if (demo) {
           <div class="state-viewport">
             <div>
               <div class="state-orb">STATE</div>
-              <div class="state-copy"><strong id="state-name">timer_base.state</strong><span>tool knowledge already compiled offline</span></div>
+              <div class="state-copy"><strong id="state-name">timer_base.state</strong><span id="state-note">tool knowledge already compiled offline</span></div>
             </div>
           </div>
           <div class="progress-wrap">
@@ -159,22 +208,15 @@ if (demo) {
           </div>
           <div class="action-stage">
             <div class="action-wait"><b></b><span id="engram-wait">Ready to load state</span></div>
-            <div id="engram-screen" class="android-screen">
-              <div class="android-status"><span>12:42</span><span>● ● ●</span></div>
-              <div id="engram-screen-title" class="clock-title">Timer</div>
-              <div id="engram-digits" class="timer-digits">20:00</div>
-              <div class="timer-ring"></div>
-              <div class="timer-caption">Running on device</div>
-              <div id="engram-toast" class="android-toast">20:00 timer started</div>
-            </div>
+            <div id="engram-screen" class="device-screen"></div>
           </div>
           <div id="engram-result" class="race-result"><span>Function call</span><strong id="engram-call">set_timer(20m)</strong></div>
         </section>
       </div>
 
       <div class="race-caption">
-        <span><b>Playback uses the representative TTFT values reported above:</b> 7.301 s vs 0.259 s.</span>
-        <span>UI is an explanatory simulation; the Android demo will invoke real device actions.</span>
+        <span><b>Playback uses representative TTFT:</b> 7.301 s vs 0.259 s.</span>
+        <span>Device UI is a visual simulation; the Android demo will invoke real actions.</span>
       </div>
     </div>
   `;
@@ -182,6 +224,7 @@ if (demo) {
   const chips = [...document.querySelectorAll('[data-race-example]')];
   const run = document.getElementById('race-run');
   const query = document.getElementById('race-query');
+  const promptScroll = document.getElementById('prompt-scroll');
   const baselineLane = document.getElementById('baseline-lane');
   const engramLane = document.getElementById('engram-lane');
   const baselineClock = document.getElementById('baseline-clock');
@@ -194,34 +237,98 @@ if (demo) {
   const engramStage = document.getElementById('engram-stage');
   const baselineWait = document.getElementById('baseline-wait');
   const engramWait = document.getElementById('engram-wait');
+  const stateNote = document.getElementById('state-note');
+
   let active = 'timer';
-  let timers = [];
+  let timeouts = [];
   let intervals = [];
 
   const later = (fn, ms) => {
     const id = setTimeout(fn, ms);
-    timers.push(id);
+    timeouts.push(id);
     return id;
   };
 
   function stopAsync() {
-    timers.forEach(clearTimeout);
+    timeouts.forEach(clearTimeout);
     intervals.forEach(clearInterval);
-    timers = [];
+    timeouts = [];
     intervals = [];
   }
 
-  function forceAnimationRestart(node) {
+  function restartAnimation(node) {
     node.classList.remove('running');
     void node.offsetWidth;
   }
 
+  function formatCountdown(seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function deviceMarkup(example) {
+    if (example.kind === 'timer') {
+      return `
+        <div class="mock-device timer-device">
+          <div class="device-status"><span>Clock</span><span class="status-dot">●</span></div>
+          <div class="timer-face">
+            <div class="timer-ring"><div class="timer-number" data-countdown>20:00</div></div>
+            <div class="device-success">Timer running</div>
+            <div class="device-detail">20 minute timer · on device</div>
+          </div>
+        </div>`;
+    }
+
+    if (example.kind === 'alarm') {
+      return `
+        <div class="mock-device alarm-device">
+          <div class="device-status"><span>Alarm</span><span class="status-dot">●</span></div>
+          <div class="alarm-card">
+            <div><span class="alarm-time">07:00</span><small>Tomorrow morning</small></div>
+            <div class="alarm-toggle"><i></i></div>
+          </div>
+          <div class="device-success">Alarm set</div>
+          <div class="device-detail">Local device time · tomorrow</div>
+        </div>`;
+    }
+
+    return `
+      <div class="mock-device calendar-device">
+        <div class="device-status"><span>Calendar</span><span class="status-dot">●</span></div>
+        <div class="calendar-date"><strong>20</strong><span>AUG</span></div>
+        <div class="calendar-event">
+          <span class="event-bar"></span>
+          <div><strong>Team sync</strong><small>Tomorrow · 3:00 PM</small></div>
+        </div>
+        <div class="device-success">Event added to calendar</div>
+      </div>`;
+  }
+
+  function startDevice(screen, example) {
+    screen.className = `device-screen show ${example.kind}`;
+    screen.innerHTML = deviceMarkup(example);
+
+    if (example.kind === 'timer') {
+      const counter = screen.querySelector('[data-countdown]');
+      let seconds = 1200;
+      const id = setInterval(() => {
+        seconds = Math.max(0, seconds - 1);
+        counter.textContent = formatCountdown(seconds);
+        if (seconds === 0) clearInterval(id);
+      }, 1000);
+      intervals.push(id);
+    }
+  }
+
   function resetRace() {
     stopAsync();
-    forceAnimationRestart(baselineLane);
-    forceAnimationRestart(engramLane);
-    baselineScreen.classList.remove('show');
-    engramScreen.classList.remove('show');
+    restartAnimation(baselineLane);
+    restartAnimation(engramLane);
+    baselineScreen.className = 'device-screen';
+    engramScreen.className = 'device-screen';
+    baselineScreen.innerHTML = '';
+    engramScreen.innerHTML = '';
     baselineResult.classList.remove('done');
     engramResult.classList.remove('done');
     baselineClock.textContent = '0.000 s';
@@ -237,14 +344,11 @@ if (demo) {
   function renderExample() {
     const ex = examples[active];
     query.textContent = ex.query;
+    promptScroll.innerHTML = promptTemplates[active];
     document.getElementById('state-name').textContent = ex.state;
+    stateNote.textContent = ex.stateNote;
     document.getElementById('baseline-call').textContent = ex.result;
     document.getElementById('engram-call').textContent = ex.result;
-    ['baseline', 'engram'].forEach(prefix => {
-      document.getElementById(`${prefix}-screen-title`).textContent = ex.screenTitle;
-      document.getElementById(`${prefix}-digits`).textContent = ex.digits;
-      document.getElementById(`${prefix}-toast`).textContent = ex.toast;
-    });
     resetRace();
   }
 
@@ -267,13 +371,13 @@ if (demo) {
     intervals.push(id);
   }
 
-  function revealAction(screen, result, stage, waitText, finalTime) {
-    screen.classList.add('show');
+  function revealAction(screen, result, stage, waitText, clock, value) {
+    const ex = examples[active];
+    startDevice(screen, ex);
     result.classList.add('done');
     stage.textContent = 'Function call generated ✓';
-    waitText.textContent = 'Device action invoked';
-    finalTime && (finalTime.element.textContent = finalTime.value);
-    later(() => screen.classList.remove('show'), 2100);
+    waitText.textContent = 'Device action invoked ✓';
+    clock.textContent = value;
   }
 
   run.addEventListener('click', () => {
@@ -292,25 +396,15 @@ if (demo) {
     animateClock(engramClock, 259);
 
     later(() => {
-      revealAction(
-        engramScreen,
-        engramResult,
-        engramStage,
-        engramWait,
-        { element: engramClock, value: '0.259 s' }
-      );
+      revealAction(engramScreen, engramResult, engramStage, engramWait, engramClock, '0.259 s');
     }, 259);
 
     later(() => {
-      revealAction(
-        baselineScreen,
-        baselineResult,
-        baselineStage,
-        baselineWait,
-        { element: baselineClock, value: '7.301 s' }
-      );
+      revealAction(baselineScreen, baselineResult, baselineStage, baselineWait, baselineClock, '7.301 s');
       run.disabled = false;
       run.textContent = 'Run again';
     }, 7301);
   });
+
+  renderExample();
 }
