@@ -1,55 +1,37 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Why Base and Corrective states? · EngramState</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../style.css" />
-  <link rel="stylesheet" href="../brand.css" />
-</head>
-<body>
-  <div class="noise"></div>
-  <header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#method">Method</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header>
-  <main>
-    <section class="article-hero article-shell">
-      <div class="article-meta">Technical note 02 · Method</div>
-      <h1>Why EngramState uses Base and Corrective states</h1>
-      <p>Most queries need the ordinary tool contract. A smaller fraction need extra knowledge about failure modes. EngramState keeps those two paths separate.</p>
-    </section>
-    <article class="article-card article-shell">
-      <p>A single tool specification can contain two very different kinds of information. The first is the stable, canonical contract of the API. The second is knowledge accumulated from cases where the model tends to fail.</p>
-
-      <h2>Base State: the common path</h2>
-      <p>The <strong>Base State</strong> represents the information that should be available for ordinary calls: tool name, description, arguments, value formats, and canonical examples.</p>
-      <p>Because this is the path used most often, EngramState keeps it focused. A successful Base attempt ends immediately with a validated function call.</p>
-
-      <h2>Corrective State: targeted repair</h2>
-      <p>The <strong>Corrective State</strong> stores harder cases and failure-oriented guidance: confusing values, parameter conventions, known error patterns, and corrective examples.</p>
-      <p>This information is useful, but forcing every request to carry it would make the common path unnecessarily heavy. EngramState instead loads it only when the Base attempt needs correction.</p>
-
-      <pre><code>User query
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>How Base and Corrective states are constructed · EngramState</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../brand.css"></head><body><div class="noise"></div><header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#method">Method</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header><main>
+<section class="article-hero article-shell"><div class="article-meta">Technical note 02 · State construction</div><h1>How Base and Corrective states are constructed</h1><p>The split is not a hand-written guess. EngramState calibrates how much tool information each model can retain before additional text stops helping the common path.</p></section>
+<article class="article-card article-shell">
+<p>A tool specification contains heterogeneous information: tool identity, description, argument schema, value-format rules, examples, failure patterns, and hard cases. Packing everything into one state sounds simple, but small on-device models have limited state capacity. More information does not always improve function-calling accuracy.</p>
+<h2>Retention-aware boundary calibration</h2>
+<p>For each fine-tuned RWKV-7 model, we progressively append tool-information sections and evaluate function-calling accuracy on <strong>200 single-call calibration examples</strong>. We choose the <strong>first point at which calibration accuracy reaches its maximum</strong>. Information before that boundary becomes Base knowledge; later sections become Corrective knowledge.</p>
+<p>This is deliberately conservative. If later sections no longer improve accuracy—or begin to reduce it—we avoid forcing them into every request.</p>
+<table class="comparison-table"><thead><tr><th>Model</th><th>Selected boundary</th><th>Interpretation</th></tr></thead><tbody><tr><td>RWKV-7 0.1B</td><td>AS</td><td>Keep canonical schema compact</td></tr><tr><td>RWKV-7 0.4B</td><td>AS</td><td>Same calibrated common path</td></tr><tr><td>RWKV-7 1.5B</td><td>AS</td><td>Base ends at argument schema</td></tr><tr><td>RWKV-7 2.9B</td><td>AF</td><td>Larger state retains more information</td></tr></tbody></table>
+<p>The calibration is currently model-level: one boundary is applied across the tool repository for a given backbone. A finer-grained extension could calibrate each tool independently.</p>
+<h2>What goes into the Base State?</h2>
+<p>The Tool Name, Tool Description, and Argument Schema are required across the evaluated models. For RWKV-7 1.5B, the calibrated Base boundary is AS, so the canonical execution contract remains in the fast path.</p>
+<pre><code>Base State
+├── system instruction
+├── tool name
+├── tool description
+└── argument schema</code></pre>
+<h2>What goes into the Corrective State?</h2>
+<p>Later information—format rules, difficult values, hard cases, and corrective examples—can remain available without burdening the first attempt. Validator feedback determines whether execution terminates, retries the Corrective State, or advances to another candidate.</p>
+<pre><code>User query
    ↓
-Retrieve candidate tool
+Retrieve candidate
    ↓
 Load Base State
    ↓
-Generate call
+Generate function call
    ├── valid → execute
    └── error → load Corrective State → retry</code></pre>
-
-      <div class="article-callout"><strong>The design goal is asymmetry:</strong> make ordinary cases cheap while preserving a deliberate path for difficult ones.</div>
-
-      <h2>Retries without restarting everything</h2>
-      <p>The same Top-K candidate list is traversed across attempts. EngramState does not need to rebuild a giant prompt for every retry. Each candidate's Base and Corrective states are attempted at most once within the traversal.</p>
-      <p>That structure also extends to multi-call execution: after one candidate succeeds, the search can continue from the remaining candidates rather than restarting from the beginning.</p>
-
-      <h2>Why not compile everything into one state?</h2>
-      <p>One large state could mix canonical and corrective information, but that makes every query pay for rare hard cases. Splitting the state gives the runtime a smaller common path and makes the retry behavior easier to reason about and inspect.</p>
-
-      <p><a class="back-link" href="./">← Back to technical notes</a></p>
-    </article>
-  </main>
-</body>
-</html>
+<div class="article-callout"><strong>Design principle:</strong> make the common path small, but preserve a deliberate recovery path for cases where the compact state does not retain enough detail.</div>
+<h2>Compilation is only a forward pass</h2>
+<p>Once the boundary is chosen, compilation is straightforward. The selected prompt sections are tokenized and fed to a <strong>frozen</strong> backbone. After the final token, EngramState saves the remaining recurrent state and discards the logits. There is no gradient computation, backpropagation, or parameter update.</p>
+<p>For RWKV-7, one saved state includes three tensor families from every layer:</p>
+<ul><li>time-mixing token-shift state,</li><li>WKV recurrent state,</li><li>channel-mixing token-shift state.</li></ul>
+<p>For RWKV-7 1.5B, one complete uncompressed state is about 12 MiB; the Base + Corrective pair is then compressed for storage.</p>
+<h2>Why not merge Base and Corrective?</h2>
+<p>Larger models may eventually retain enough information in one state that the split becomes less important. The 2.9B calibration already shifts to a later boundary, suggesting increased capacity. But for small on-device models, separating common and rare information gives a better latency/robustness trade-off.</p>
+<p><a class="back-link" href="./">← Back to technical notes</a></p></article></main></body></html>
