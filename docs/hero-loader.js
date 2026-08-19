@@ -55,4 +55,8 @@
     `;
     document.head.appendChild(css);
   }
+
+  const refreshScript = document.createElement('script');
+  refreshScript.src = new URL('./visual-refresh.js', script.src).href;
+  document.body.appendChild(refreshScript);
 })();
