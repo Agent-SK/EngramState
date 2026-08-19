@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="EngramState — reusable recurrent states for fast, memory-efficient on-device tool calling." />
   <meta property="og:title" content="EngramState" />
-  <meta property="og:description" content="Compile tool knowledge once. Recall it instantly." />
+  <meta property="og:description" content="Load memory, not prompts." />
   <meta property="og:type" content="website" />
   <title>EngramState — Reusable Recurrent States for On-Device Tool Calling</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./example.css" />
+  <link rel="stylesheet" href="./brand.css" />
 </head>
 <body>
   <div class="noise"></div>
@@ -29,16 +30,29 @@
   </header>
 
   <main id="top">
-    <section class="hero shell">
-      <div class="eyebrow">ON-DEVICE AGENTS · STATEFUL LANGUAGE MODELS</div>
-      <h1>Compile tool knowledge once.<br><span>Recall it instantly.</span></h1>
-      <p class="lead">EngramState replaces repeated tool-specification prefill with reusable recurrent states, enabling fast and memory-efficient function calling on resource-constrained devices.</p>
-      <div class="cta-row">
-        <a class="button primary" href="#method">Explore the method</a>
-        <a class="button secondary" href="#demo">See the demo</a>
-        <a class="button ghost disabled" aria-disabled="true">Paper · coming at release</a>
+    <section class="hero hero-split shell">
+      <div class="hero-copy">
+        <div class="eyebrow">ON-DEVICE AGENTS · REUSABLE RECURRENT STATES</div>
+        <h1>Your device should<br><span>remember.</span></h1>
+        <p class="lead"><strong>EngramState</strong> compiles static tool knowledge once, retrieves the right memory from a live query, and restores it directly into a stateful language model — instead of rereading long tool prompts on every request.</p>
+        <div class="cta-row">
+          <a class="button primary" href="#demo">See the live comparison</a>
+          <a class="button secondary" href="#method">Explore the method</a>
+          <a class="button ghost disabled" aria-disabled="true">Paper · coming at release</a>
+        </div>
+        <div class="hero-badges">
+          <span class="hero-badge">Stateful on-device inference</span>
+          <span class="hero-badge yellow">Load memory, not prompts</span>
+        </div>
       </div>
 
+      <div class="hero-art-wrap">
+        <img data-engram-art alt="EngramState illustration: an on-device agent organizing reusable tool memories inside a smartphone" />
+        <div class="hero-art-note"><strong>EngramState</strong><span>Reusable tool knowledge for on-device agents</span></div>
+      </div>
+    </section>
+
+    <section class="hero-after shell">
       <div class="hero-metrics">
         <div><strong>97.8%</strong><span>fewer prompt tokens</span></div>
         <div><strong>28.2×</strong><span>faster TTFT</span></div>
@@ -186,32 +200,6 @@ examples:
       <div class="section-kicker">04 · INTERACTIVE WALKTHROUGH</div>
       <h2>See what happens<br>between query and action.</h2>
       <p class="section-copy">This browser walkthrough visualizes the execution path. The Android application will use the real on-device model and invoke actual device actions.</p>
-
-      <div class="demo-window">
-        <div class="window-bar"><span></span><span></span><span></span><small>EngramState · execution inspector</small></div>
-        <div class="demo-toolbar">
-          <button class="example-chip active" data-example="timer">Timer</button>
-          <button class="example-chip" data-example="alarm">Alarm</button>
-          <button class="example-chip" data-example="calendar">Calendar</button>
-        </div>
-        <div class="demo-content">
-          <div class="phone-panel">
-            <div class="phone-label">USER QUERY</div>
-            <div id="demo-query" class="query-box">Set a timer for 20 minutes.</div>
-            <button id="run-demo">Run EngramState</button>
-            <div class="demo-stat-row"><span>Live prompt</span><strong>22 tokens</strong></div>
-            <div class="demo-stat-row"><span>Representative TTFT</span><strong>0.259 s</strong></div>
-          </div>
-          <div class="trace-panel" id="trace-panel">
-            <div class="trace"><b>01</b><span>Query received</span><em></em></div>
-            <div class="trace"><b>02</b><span>Retrieve candidate state</span><em></em></div>
-            <div class="trace"><b>03</b><span>Load Base State</span><em></em></div>
-            <div class="trace"><b>04</b><span>Generate function call</span><code id="demo-call">set_timer(minutes=20)</code></div>
-            <div class="trace"><b>05</b><span>Device action ready</span><em></em></div>
-          </div>
-        </div>
-      </div>
-      <p class="demo-note">The browser animation is an explanatory walkthrough, not an in-browser benchmark. Device measurements are reported separately.</p>
     </section>
 
     <section class="section shell storage-section">
@@ -246,6 +234,7 @@ examples:
     <p>Paper & citation metadata will be added at public release.</p>
   </footer>
 
+  <script src="./hero-loader.js"></script>
   <script src="./script.js"></script>
 </body>
 </html>
