@@ -1,56 +1,36 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Why repeated tool prompts are expensive · EngramState</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../style.css" />
-  <link rel="stylesheet" href="../brand.css" />
-</head>
-<body>
-  <div class="noise"></div>
-  <header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#method">Method</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header>
-  <main>
-    <section class="article-hero article-shell">
-      <div class="article-meta">Technical note 01 · Motivation</div>
-      <h1>Why repeated tool prompts are expensive</h1>
-      <p>Tool descriptions are mostly static. A mobile agent should not have to reread the same instructions every time the user asks for something new.</p>
-    </section>
-    <article class="article-card article-shell">
-      <p>Function-calling models usually receive a user query together with a collection of tool specifications. Those specifications describe function names, arguments, formats, constraints, and examples. They are important — but they rarely change from one interaction to the next.</p>
-
-      <h2>The repeated-prefill problem</h2>
-      <p>In a conventional prompt-based pipeline, static tool text is concatenated with every live query. Even a very short request can therefore trigger a long prefill before the model generates its first output token.</p>
-      <pre><code>User query + Tool 1 spec + Tool 2 spec + ... + Tool N spec
-                         ↓
-                     Prefill
-                         ↓
-                    Tool call</code></pre>
-      <p>For cloud-scale serving this can be absorbed by large accelerators and batching. On a phone, repeated context processing becomes much more visible because latency, memory bandwidth, and energy are constrained.</p>
-
-      <div class="article-callout"><strong>EngramState asks a different question:</strong> if the tool instructions are static, can the model consume them once and reuse what it learned at runtime?</div>
-
-      <h2>Compile knowledge into model state</h2>
-      <p>Stateful language models expose a recurrent state that summarizes the prefix processed so far. EngramState treats that state as a reusable deployment artifact. A tool specification is consumed offline in a single forward pass, the final recurrent state is retained, and the logits are discarded.</p>
-      <p>At runtime, the live user query retrieves the relevant stored state. The model can then continue from the restored state rather than reprocessing the entire textual specification.</p>
-      <pre><code>Offline
-Tool specification → Stateful LM → Reusable tool state
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Why repeated tool prompts are expensive · EngramState</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../brand.css"></head><body><div class="noise"></div><header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#method">Method</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header><main>
+<section class="article-hero article-shell"><div class="article-meta">Technical note 01 · Motivation</div><h1>Why repeated tool prompts are expensive</h1><p>A tool definition is useful knowledge. Re-reading the same definition every time is repeated work. On a phone, that distinction becomes visible as latency.</p></section>
+<article class="article-card article-shell">
+<p>Most function-calling systems begin with a sensible recipe: retrieve a few relevant tools, concatenate their textual specifications with the user query, and ask the model to emit a structured call. The specification usually contains a tool name, natural-language description, argument schema, value constraints, and examples.</p>
+<p>The problem is not that this information is unnecessary. The problem is that <strong>it is mostly static</strong>.</p>
+<h2>A short query can create a long prefill</h2>
+<p>Consider a user asking, <code>Set a timer for 20 minutes.</code> The live intent is tiny. A conventional tool prompt may still carry hundreds of tokens describing timers, alarms, calendars, messages, settings, and other candidate tools.</p>
+<pre><code>User Query
++ Tool 1 specification
++ Tool 2 specification
++ Tool 3 specification
++ ...
+        ↓
+      Prefill
+        ↓
+  Function call</code></pre>
+<p>In our representative DroidCall setting with RWKV-7 1.5B, the prompt baseline processes <strong>985 prompt tokens</strong>. EngramState reduces the live prompt to <strong>22 tokens</strong>, a 97.8% reduction, and TTFT falls from <strong>7.301 s to 0.259 s</strong>.</p>
+<div class="article-callout"><strong>The key shift:</strong> EngramState is not trying to make the tool text slightly shorter. It removes static tool text from the repeated online path and stores the resulting model state as reusable memory.</div>
+<h2>Why not just cache a Transformer prefix?</h2>
+<p>Prefix/KV caching is the natural Transformer analogue. It does avoid recomputing a prefix, but its storage grows with prompt length. For a 1B-scale Transformer, an 800–1,000 token tool description can require roughly <strong>50–62.5 MiB of KV cache for one tool</strong>. A larger repository therefore creates a cache-management problem even before considering multiple model sizes.</p>
+<p>A fixed-size recurrent state behaves differently. Once a stateful model has consumed the tool specification, the saved state shape no longer depends on whether the original description was 500 or 1,000 tokens. That fixed-size property is the deployment primitive EngramState exploits.</p>
+<h2>Compile once, continue from memory</h2>
+<pre><code>Offline
+Tool specification → Frozen stateful LM → Save recurrent state
 
 Runtime
-User query → Retrieve state → Load → Generate tool call</code></pre>
-
-      <h2>What changes at runtime?</h2>
-      <p>In our representative RWKV-7 1.5B DroidCall setting, the live prompt drops from <strong>985 tokens to 22 tokens</strong>. Corresponding TTFT drops from <strong>7.301 s to 0.259 s</strong>.</p>
-      <p>The important shift is not merely prompt compression. Static knowledge moves out of the repeated inference path entirely and becomes reusable model memory.</p>
-
-      <h2>Why this is useful for on-device agents</h2>
-      <p>Local agents often operate over a stable catalog of device capabilities: alarms, timers, calendars, settings, media controls, and application APIs. Those capabilities are natural candidates for offline compilation because the descriptions change much less frequently than user queries.</p>
-      <p>EngramState therefore trades repeated prompt compute for selectively loaded persistent state — a trade that is particularly attractive when first-token latency matters.</p>
-
-      <p><a class="back-link" href="./">← Back to technical notes</a></p>
-    </article>
-  </main>
-</body>
-</html>
+User query → Retrieve tool state → Restore state → Generate call</code></pre>
+<p>The offline compilation is a single forward pass. There is no gradient computation, backpropagation, or parameter update. The logits are discarded; the final recurrent state is retained.</p>
+<h2>Why this matters on a real phone</h2>
+<p>Cloud APIs can hide prefill cost behind large accelerators, batching, and network-level product abstractions. A local agent cannot. Its latency, memory bandwidth, storage budget, and power draw are visible to the user.</p>
+<p>We therefore include real-device measurements on a <strong>Samsung Galaxy S25 Ultra</strong>. The important claim is not merely that a desktop GPU benchmark is fast: the local model/state path remains practical when moved to the device where an agent is expected to execute.</p>
+<h2>What EngramState trades</h2>
+<p>EngramState trades repeated online text processing for persistent state files and offline compilation. The system is attractive only if those offline costs are small enough and the state repository can be managed efficiently. That is why the rest of the project focuses heavily on state compression, retrieval, incremental updates, and retry behavior rather than treating the state file as an abstract cache.</p>
+<p><a class="back-link" href="./">← Back to technical notes</a></p>
+</article></main></body></html>
