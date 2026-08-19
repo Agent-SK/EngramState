@@ -64,9 +64,23 @@
     document.body.appendChild(refreshScript);
   };
 
+  const loadTimingDisplayPatch = () => {
+    if (document.querySelector('script[data-timing-display-patch]')) return;
+    const timingScript = document.createElement('script');
+    timingScript.src = new URL('./timing-display-patch.js', script.src).href;
+    timingScript.dataset.timingDisplayPatch = 'true';
+    document.body.appendChild(timingScript);
+  };
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadVisualRefresh, { once: true });
   } else {
     loadVisualRefresh();
+  }
+
+  if (document.readyState === 'complete') {
+    loadTimingDisplayPatch();
+  } else {
+    window.addEventListener('load', loadTimingDisplayPatch, { once: true });
   }
 })();
