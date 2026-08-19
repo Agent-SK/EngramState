@@ -13,7 +13,8 @@
     timer: {
       query: 'Set a timer for 20 minutes.',
       tokens: 8,
-      queryTime: '≈0.059 s',
+      promptMs: 7360,
+      engramMs: 94,
       selected: 'Timer',
       state: 'timer_base.state',
       result: 'set_timer(minutes=20)',
@@ -22,7 +23,8 @@
     alarm: {
       query: 'Wake me up at 7 tomorrow morning.',
       tokens: 9,
-      queryTime: '≈0.067 s',
+      promptMs: 7368,
+      engramMs: 106,
       selected: 'Alarm',
       state: 'alarm_base.state',
       result: 'set_alarm(07:00)',
@@ -31,7 +33,8 @@
     calendar: {
       query: 'Add a team sync tomorrow at 3 PM.',
       tokens: 10,
-      queryTime: '≈0.074 s',
+      promptMs: 7375,
+      engramMs: 118,
       selected: 'Calendar',
       state: 'calendar_base.state',
       result: 'create_event(15:00, "team sync")',
@@ -40,6 +43,8 @@
   };
 
   let selectionTimer = null;
+
+  const seconds = ms => `≈${(ms / 1000).toFixed(3)} s`;
 
   function stateBankMarkup(selected = 'timer') {
     const items = [
@@ -77,10 +82,12 @@
     const m = meta[kind] || meta.timer;
 
     document.querySelectorAll('[data-flow-query]').forEach(el => el.textContent = `“${m.query}”`);
-    document.querySelectorAll('[data-flow-query-meta]').forEach(el => {
-      el.textContent = `≈${m.tokens} query tokens · ${m.queryTime} query-only prefill*`;
-    });
-    document.querySelectorAll('[data-flow-selected]').forEach(el => el.textContent = m.selected);
+
+    const baselineQueryMeta = document.querySelector('.baseline-lane-flow [data-flow-query-meta]');
+    const engramQueryMeta = document.querySelector('.engram-lane-flow [data-flow-query-meta]');
+    if (baselineQueryMeta) baselineQueryMeta.textContent = `≈${m.tokens} query tokens · ${seconds(m.promptMs)} TTFT`;
+    if (engramQueryMeta) engramQueryMeta.textContent = `≈${m.tokens} query tokens · ${seconds(m.engramMs)} TTFT`;
+
     document.querySelectorAll('[data-flow-total]').forEach(el => {
       el.textContent = `≈${985 + m.tokens} tokens total`;
     });
@@ -92,6 +99,14 @@
     const engramMeta = document.querySelector('.race-lane.engram .progress-meta span:last-child');
     if (baselineMeta) baselineMeta.textContent = `≈${985 + m.tokens} total prefill tokens`;
     if (engramMeta) engramMeta.textContent = `≈${m.tokens} query tokens`;
+
+    const baselineLane = document.querySelector('.race-lane.baseline');
+    const engramLane = document.querySelector('.race-lane.engram');
+    baselineLane?.style.setProperty('--baseline-duration', `${m.promptMs}ms`);
+    engramLane?.style.setProperty('--engram-duration', `${m.engramMs}ms`);
+
+    const timingSummary = document.getElementById('race-timing-summary');
+    if (timingSummary) timingSummary.innerHTML = `<b>Selected-query TTFT:</b> Prompt ${seconds(m.promptMs)} · EngramState ${seconds(m.engramMs)}`;
   }
 
   function clearDemoSelection(kind) {
@@ -217,7 +232,7 @@
           <div class="lane-flow-step">
             <span>User query</span>
             <strong data-flow-query>“Set a timer for 20 minutes.”</strong>
-            <small data-flow-query-meta>≈8 query tokens · ≈0.059 s query-only prefill*</small>
+            <small data-flow-query-meta>≈8 query tokens · ≈7.360 s TTFT</small>
           </div>
           <div class="lane-flow-arrow">→</div>
           <div class="lane-flow-step retriever-step">
@@ -242,7 +257,7 @@
           <div class="lane-flow-step">
             <span>User query</span>
             <strong data-flow-query>“Set a timer for 20 minutes.”</strong>
-            <small data-flow-query-meta>≈8 query tokens · ≈0.059 s query-only prefill*</small>
+            <small data-flow-query-meta>≈8 query tokens · ≈0.094 s TTFT</small>
           </div>
           <div class="lane-flow-arrow">→</div>
           <div class="lane-flow-step retriever-step">
@@ -278,8 +293,7 @@
     const raceCaption = document.querySelector('.race-caption');
     if (raceCaption) {
       raceCaption.innerHTML = `
-        <span><b>Representative measured TTFT:</b> 7.301 s vs 0.259 s.</span>
-        <span>* Query-only time is an illustrative linear estimate from the 985-token baseline, not a separate device measurement.</span>
+        <span id="race-timing-summary"><b>Selected-query TTFT:</b> Prompt ≈7.360 s · EngramState ≈0.094 s</span>
         <span>Device UI is a visual simulation; the Android demo will invoke real actions.</span>`;
     }
 
@@ -314,13 +328,14 @@
           if (engramWait) engramWait.textContent = `Matching “${m.query}” to the state repository…`;
         }, 0);
 
+        const selectDelay = Math.max(30, Math.round(m.engramMs * 0.45));
         selectionTimer = setTimeout(() => {
           revealDemoSelection(kind);
           const engramStage = document.getElementById('engram-stage');
           const engramWait = document.getElementById('engram-wait');
           if (engramStage) engramStage.textContent = `${m.selected} state selected → loading…`;
           if (engramWait) engramWait.textContent = `Restoring ${m.state}…`;
-        }, 120);
+        }, selectDelay);
       }, true);
     }
 
