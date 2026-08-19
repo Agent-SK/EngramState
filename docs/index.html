@@ -3,127 +3,192 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="ES — efficient on-device tool use via reusable states." />
-  <title>ES — Efficient On-Device Tool Use</title>
+  <meta name="description" content="EngramState — reusable recurrent states for fast, memory-efficient on-device tool calling." />
+  <meta property="og:title" content="EngramState" />
+  <meta property="og:description" content="Compile tool knowledge once. Recall it instantly." />
+  <meta property="og:type" content="website" />
+  <title>EngramState — Reusable Recurrent States for On-Device Tool Calling</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div class="noise"></div>
   <header class="nav shell">
-    <a class="brand" href="#top">ES</a>
+    <a class="brand" href="#top"><span class="brand-mark">E</span> EngramState</a>
     <nav>
       <a href="#overview">Overview</a>
       <a href="#method">Method</a>
-      <a href="#demo">Demo</a>
       <a href="#results">Results</a>
-      <a href="#updates">Updates</a>
+      <a href="#demo">Demo</a>
+      <a href="./blog/">Blog</a>
       <a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a>
     </nav>
   </header>
 
   <main id="top">
     <section class="hero shell">
-      <div class="eyebrow">RESEARCH PROJECT · WORK IN PROGRESS</div>
-      <h1>Stop rereading the same<br><span>tool instructions.</span></h1>
-      <p class="lead">ES explores reusable states for efficient on-device tool use — moving repeated tool knowledge out of the inference path and loading it only when needed.</p>
+      <div class="eyebrow">ON-DEVICE AGENTS · STATEFUL LANGUAGE MODELS</div>
+      <h1>Compile tool knowledge once.<br><span>Recall it instantly.</span></h1>
+      <p class="lead">EngramState replaces repeated tool-specification prefill with reusable recurrent states, enabling fast and memory-efficient function calling on resource-constrained devices.</p>
       <div class="cta-row">
-        <a class="button primary" href="#method">Explore the idea</a>
-        <a class="button secondary" href="https://github.com/Agent-SK/ES">View repository</a>
+        <a class="button primary" href="#method">Explore the method</a>
+        <a class="button secondary" href="#demo">See the demo</a>
+        <a class="button ghost disabled" aria-disabled="true">Paper · coming at release</a>
       </div>
+
+      <div class="hero-metrics">
+        <div><strong>97.8%</strong><span>fewer prompt tokens</span></div>
+        <div><strong>28.2×</strong><span>faster TTFT</span></div>
+        <div><strong>6.19 MiB</strong><span>4-bit states / tool</span></div>
+        <div><strong>0.956</strong><span>Hit@4 at 206 tools</span></div>
+      </div>
+
       <div class="hero-card">
         <div class="lane old">
-          <div class="lane-label">Traditional</div>
-          <div class="pipeline"><span>User query</span><b>+</b><span>Tool specs</span><i>→</i><span>Prefill</span><i>→</i><strong>Tool call</strong></div>
+          <div class="lane-label">Prompt baseline</div>
+          <div class="pipeline"><span>User query</span><b>+</b><span class="hot">985 tool-prompt tokens</span><i>→</i><span>Long prefill</span><i>→</i><strong>Tool call</strong></div>
         </div>
         <div class="divider"></div>
         <div class="lane new">
-          <div class="lane-label">ES</div>
-          <div class="pipeline"><span>User query</span><i>→</i><span>Retrieve state</span><i>→</i><span>Load</span><i>→</i><strong>Tool call</strong></div>
+          <div class="lane-label">EngramState</div>
+          <div class="pipeline"><span>User query</span><i>→</i><span>Retrieve</span><i>→</i><span class="cool">Load reusable state</span><i>→</i><strong>Tool call</strong></div>
         </div>
       </div>
     </section>
 
     <section id="overview" class="section shell">
-      <div class="section-kicker">01 · OVERVIEW</div>
-      <h2>Compile once. Reuse at runtime.</h2>
-      <p class="section-copy">Many tool-use systems repeatedly process static tool information for every request. ES separates reusable knowledge from the live user query, enabling a lighter runtime path designed with mobile inference in mind.</p>
+      <div class="section-kicker">01 · MOTIVATION</div>
+      <h2>The tool never changed.<br>Why read it again?</h2>
+      <p class="section-copy">Function-calling prompts contain mostly static information: tool names, descriptions, arguments, value formats, and examples. Conventional pipelines repeatedly prefill that same text for every request. EngramState treats this information as reusable memory instead of repeated input.</p>
       <div class="feature-grid">
-        <article><div class="icon">⚡</div><h3>Less repeated work</h3><p>Avoid processing the same tool descriptions on every interaction.</p></article>
-        <article><div class="icon">🧠</div><h3>Reusable states</h3><p>Prepare compact tool-specific states offline and load them when needed.</p></article>
-        <article><div class="icon">📱</div><h3>On-device first</h3><p>Designed around latency, storage, and runtime constraints of mobile deployment.</p></article>
+        <article><div class="icon">01</div><h3>Compile offline</h3><p>Consume each tool specification once and retain the resulting recurrent state instead of logits.</p></article>
+        <article><div class="icon">02</div><h3>Retrieve at runtime</h3><p>A lightweight state retriever maps the live user query to a small Top-K candidate list.</p></article>
+        <article><div class="icon">03</div><h3>Load, then generate</h3><p>Restore the selected state and start generation from the short live query rather than the full specification.</p></article>
       </div>
     </section>
 
-    <section id="method" class="section shell split">
-      <div>
-        <div class="section-kicker">02 · METHOD</div>
-        <h2>A simple runtime path.</h2>
-        <p class="section-copy">A lightweight retriever selects a candidate state from the user query. The runtime loads that state and generates the function call without repeatedly prefilling the full tool specification.</p>
+    <section id="method" class="section shell">
+      <div class="section-kicker">02 · METHOD</div>
+      <div class="section-heading-row">
+        <div><h2>Base knowledge.<br>Corrective memory.</h2></div>
+        <p class="section-copy">Each tool is represented by a Base State containing its canonical specification and a Corrective State capturing failure rules and hard cases. The corrective path is activated only when necessary.</p>
       </div>
-      <div class="flow-card">
-        <div class="flow-node query">User Query</div>
-        <div class="arrow">↓</div>
-        <div class="flow-node">State Retriever</div>
-        <div class="arrow">↓</div>
-        <div class="flow-node accent">Reusable State</div>
-        <div class="arrow">↓</div>
-        <div class="flow-node">Function Call</div>
-        <div class="arrow">↓</div>
-        <div class="flow-node success">Device Action</div>
-      </div>
-    </section>
 
-    <section id="demo" class="section shell">
-      <div class="section-kicker">03 · DEMO</div>
-      <h2>See the execution, not just the benchmark.</h2>
-      <p class="section-copy">The mobile demo will show retrieval, state loading, generated function calls, and real device actions in one view. This preview is intentionally static for now.</p>
-      <div class="demo-window">
-        <div class="window-bar"><span></span><span></span><span></span><small>ES Mobile Demo</small></div>
-        <div class="demo-content">
-          <div class="phone-panel">
-            <div class="phone-label">USER QUERY</div>
-            <div class="query-box">Set a timer for 20 minutes.</div>
-            <button disabled>Run ES</button>
-          </div>
-          <div class="trace-panel">
-            <div class="trace active"><b>01</b><span>Query received</span><em>✓</em></div>
-            <div class="trace active"><b>02</b><span>State retrieved</span><em>✓</em></div>
-            <div class="trace active"><b>03</b><span>State loaded</span><em>✓</em></div>
-            <div class="trace"><b>04</b><span>Function call</span><code>set_timer(20m)</code></div>
-          </div>
+      <div class="method-board">
+        <div class="offline-column">
+          <div class="board-label">OFFLINE COMPILATION</div>
+          <div class="spec-card"><span>Tool specification</span><small>name · description · arguments · formats · examples</small></div>
+          <div class="small-arrow">↓ single forward pass</div>
+          <div class="state-card base"><span>Base State</span><small>canonical tool knowledge</small></div>
+          <div class="spec-card muted"><span>Failure rules & hard cases</span><small>error patterns · difficult values · corrections</small></div>
+          <div class="small-arrow">↓ single forward pass</div>
+          <div class="state-card corrective"><span>Corrective State</span><small>targeted repair knowledge</small></div>
+        </div>
+        <div class="runtime-column">
+          <div class="board-label">ONLINE EXECUTION</div>
+          <div class="flow-node query">User Query</div>
+          <div class="arrow">↓</div>
+          <div class="flow-node">State Retriever <small>Top-K candidates</small></div>
+          <div class="arrow">↓</div>
+          <div class="flow-node accent">Load Base State</div>
+          <div class="arrow">↓</div>
+          <div class="flow-node">Generate Function Call</div>
+          <div class="fork"><span>valid ✓</span><span>needs correction ↘</span></div>
+          <div class="runtime-bottom"><div class="flow-node success">Execute Tool</div><div class="flow-node corrective-node">Load Corrective State</div></div>
         </div>
       </div>
     </section>
 
     <section id="results" class="section shell">
-      <div class="section-kicker">04 · RESULTS</div>
-      <h2>Numbers will land here.</h2>
-      <p class="section-copy">Final benchmark values are intentionally hidden while the project is private in spirit. Replace these placeholders once the public release is ready.</p>
-      <div class="metrics">
-        <div class="metric"><span>Prompt reduction</span><strong>TBD</strong><small>vs. baseline</small></div>
-        <div class="metric"><span>TTFT speedup</span><strong>TBD</strong><small>on-device</small></div>
-        <div class="metric"><span>Accuracy</span><strong>TBD</strong><small>task benchmark</small></div>
-        <div class="metric"><span>Storage / tool</span><strong>TBD</strong><small>quantized</small></div>
+      <div class="section-kicker">03 · RESULTS</div>
+      <h2>Move static knowledge<br>off the critical path.</h2>
+      <p class="section-copy">Representative DroidCall results with RWKV-7 1.5B show that state loading dramatically reduces prompt processing while keeping tool knowledge available to the model.</p>
+
+      <div class="comparison-table-wrap">
+        <table class="comparison-table">
+          <thead><tr><th></th><th>Prompt baseline</th><th>EngramState</th></tr></thead>
+          <tbody>
+            <tr><td>Prompt tokens</td><td>985</td><td class="win">22 <small>↓ 97.8%</small></td></tr>
+            <tr><td>TTFT</td><td>7.301 s</td><td class="win">0.259 s <small>28.2× faster</small></td></tr>
+            <tr><td>Runtime tool knowledge</td><td>Repeated text prefill</td><td class="win">Reusable state load</td></tr>
+            <tr><td>4-bit state storage</td><td>—</td><td class="win">6.19 MiB / tool</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="results-grid">
+        <article><span class="mini-label">STATE STORAGE</span><strong>24.76 → 6.19</strong><p>MiB per tool when Base + Corrective states are reduced from FP16 to 4-bit per-channel storage.</p></article>
+        <article><span class="mini-label">RETRIEVER SCALE</span><strong>0.956 Hit@4</strong><p>Measured with 206 tools while keeping the tool-embedding footprint compact.</p></article>
+        <article><span class="mini-label">OFFLINE COST</span><strong>~0.28 s</strong><p>Base + Corrective compilation for one RWKV-7 1.5B tool state pair on an RTX 3090.</p></article>
       </div>
     </section>
 
-    <section id="updates" class="section shell">
-      <div class="section-kicker">05 · UPDATES</div>
-      <h2>Build notes & releases.</h2>
-      <div class="posts">
-        <article><time>Coming soon</time><h3>Why repeated tool prompts are expensive</h3><p>A short technical note on the motivation behind ES.</p></article>
-        <article><time>Coming soon</time><h3>Running ES on a mobile device</h3><p>Deployment notes, constraints, and an end-to-end demo.</p></article>
-        <article><time>Coming soon</time><h3>Compact state storage</h3><p>Notes on quantization and practical storage trade-offs.</p></article>
+    <section id="demo" class="section shell">
+      <div class="section-kicker">04 · INTERACTIVE WALKTHROUGH</div>
+      <h2>See what happens<br>between query and action.</h2>
+      <p class="section-copy">This browser walkthrough visualizes the execution path. The Android application will use the real on-device model and invoke actual device actions.</p>
+
+      <div class="demo-window">
+        <div class="window-bar"><span></span><span></span><span></span><small>EngramState · execution inspector</small></div>
+        <div class="demo-toolbar">
+          <button class="example-chip active" data-example="timer">Timer</button>
+          <button class="example-chip" data-example="alarm">Alarm</button>
+          <button class="example-chip" data-example="calendar">Calendar</button>
+        </div>
+        <div class="demo-content">
+          <div class="phone-panel">
+            <div class="phone-label">USER QUERY</div>
+            <div id="demo-query" class="query-box">Set a timer for 20 minutes.</div>
+            <button id="run-demo">Run EngramState</button>
+            <div class="demo-stat-row"><span>Live prompt</span><strong>22 tokens</strong></div>
+            <div class="demo-stat-row"><span>Representative TTFT</span><strong>0.259 s</strong></div>
+          </div>
+          <div class="trace-panel" id="trace-panel">
+            <div class="trace"><b>01</b><span>Query received</span><em></em></div>
+            <div class="trace"><b>02</b><span>Retrieve candidate state</span><em></em></div>
+            <div class="trace"><b>03</b><span>Load Base State</span><em></em></div>
+            <div class="trace"><b>04</b><span>Generate function call</span><code id="demo-call">set_timer(minutes=20)</code></div>
+            <div class="trace"><b>05</b><span>Device action ready</span><em></em></div>
+          </div>
+        </div>
       </div>
+      <p class="demo-note">The browser animation is an explanatory walkthrough, not an in-browser benchmark. Device measurements are reported separately.</p>
+    </section>
+
+    <section class="section shell storage-section">
+      <div class="section-kicker">05 · PRACTICAL DEPLOYMENT</div>
+      <h2>Designed for constrained devices.</h2>
+      <div class="deployment-grid">
+        <article><h3>4-bit state storage</h3><p>Channel-wise state quantization reduces persistent state footprint without requiring full model quantization to change.</p></article>
+        <article><h3>Selective loading</h3><p>Only retrieved tool states enter the execution path, avoiding a runtime context that grows with the entire tool catalog.</p></article>
+        <article><h3>Incremental updates</h3><p>When an existing tool specification changes, its states can be recompiled independently. New tools can be added without rebuilding every stored state.</p></article>
+        <article><h3>Stateful backbones</h3><p>The core formulation targets recurrent/state-space models such as RWKV and Mamba, where reusable model state is a natural deployment primitive.</p></article>
+      </div>
+    </section>
+
+    <section id="blog" class="section shell">
+      <div class="section-kicker">06 · TECHNICAL NOTES</div>
+      <div class="section-heading-row"><h2>Read the ideas<br>behind the system.</h2><a class="text-link" href="./blog/">View all notes →</a></div>
+      <div class="posts">
+        <a href="./blog/why-reusable-states.html"><article><time>Technical note 01</time><h3>Why repeated tool prompts are expensive</h3><p>From static specifications to reusable model memory.</p><span>Read note →</span></article></a>
+        <a href="./blog/base-corrective.html"><article><time>Technical note 02</time><h3>Why EngramState uses Base and Corrective states</h3><p>Keeping the common path small without discarding hard-case knowledge.</p><span>Read note →</span></article></a>
+        <a href="./blog/four-bit-states.html"><article><time>Technical note 03</time><h3>Storing recurrent states at 4 bits</h3><p>A practical storage choice for mobile deployment.</p><span>Read note →</span></article></a>
+      </div>
+    </section>
+
+    <section class="closing shell">
+      <div><span class="section-kicker">ENGRAMSTATE</span><h2>Your device should remember<br>what it already knows.</h2></div>
+      <div class="cta-row"><a class="button primary" href="https://github.com/Agent-SK/ES">View on GitHub</a><a class="button secondary" href="./blog/">Technical blog</a></div>
     </section>
   </main>
 
   <footer class="shell">
-    <div><b>ES</b><span>Efficient on-device tool use.</span></div>
-    <p>Research preview · details intentionally withheld until public release.</p>
+    <div><b>EngramState</b><span>Reusable recurrent states for on-device tool calling.</span></div>
+    <p>Paper & citation metadata will be added at public release.</p>
   </footer>
+
+  <script src="./script.js"></script>
 </body>
 </html>
