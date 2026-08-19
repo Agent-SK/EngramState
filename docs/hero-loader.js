@@ -2,6 +2,8 @@
   const script = document.currentScript;
   if (!script) return;
 
+  document.querySelectorAll('.hero-art-note').forEach(note => note.remove());
+
   const base = new URL('./assets/hero/', script.src);
   const parts = [1, 2, 3, 4].map(i => new URL(`part${i}.txt`, base));
 
