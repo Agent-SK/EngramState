@@ -67,6 +67,10 @@
       </div>`).join('');
   }
 
+  function activeKind() {
+    return document.querySelector('[data-race-example].active')?.dataset.raceExample || 'timer';
+  }
+
   function updateDemoSelection(kind) {
     const m = meta[kind] || meta.timer;
 
@@ -244,6 +248,21 @@
     document.querySelectorAll('[data-race-example]').forEach(chip => {
       chip.addEventListener('click', () => updateDemoSelection(chip.dataset.raceExample));
     });
+
+    const runButton = document.getElementById('race-run');
+    if (runButton) {
+      runButton.addEventListener('click', () => {
+        const m = meta[activeKind()] || meta.timer;
+        const baselineStage = document.getElementById('baseline-stage');
+        const baselineWait = document.getElementById('baseline-wait');
+        const engramStage = document.getElementById('engram-stage');
+        const engramWait = document.getElementById('engram-wait');
+        if (baselineStage) baselineStage.textContent = 'Prefilling user query + retrieved tool specifications…';
+        if (baselineWait) baselineWait.textContent = `Waiting for ≈${985 + m.tokens}-token prompt prefill…`;
+        if (engramStage) engramStage.textContent = `State Retriever → ${m.selected} → load selected state…`;
+        if (engramWait) engramWait.textContent = `Restoring ${m.state}…`;
+      });
+    }
 
     updateDemoSelection('timer');
   }
