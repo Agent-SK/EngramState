@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="ES — efficient on-device tool use via reusable states." />
+  <title>ES — Efficient On-Device Tool Use</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="nav shell">
+    <a class="brand" href="#top">ES</a>
+    <nav>
+      <a href="#overview">Overview</a>
+      <a href="#method">Method</a>
+      <a href="#demo">Demo</a>
+      <a href="#results">Results</a>
+      <a href="#updates">Updates</a>
+      <a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero shell">
+      <div class="eyebrow">RESEARCH PROJECT · WORK IN PROGRESS</div>
+      <h1>Stop rereading the same<br><span>tool instructions.</span></h1>
+      <p class="lead">ES explores reusable states for efficient on-device tool use — moving repeated tool knowledge out of the inference path and loading it only when needed.</p>
+      <div class="cta-row">
+        <a class="button primary" href="#method">Explore the idea</a>
+        <a class="button secondary" href="https://github.com/Agent-SK/ES">View repository</a>
+      </div>
+      <div class="hero-card">
+        <div class="lane old">
+          <div class="lane-label">Traditional</div>
+          <div class="pipeline"><span>User query</span><b>+</b><span>Tool specs</span><i>→</i><span>Prefill</span><i>→</i><strong>Tool call</strong></div>
+        </div>
+        <div class="divider"></div>
+        <div class="lane new">
+          <div class="lane-label">ES</div>
+          <div class="pipeline"><span>User query</span><i>→</i><span>Retrieve state</span><i>→</i><span>Load</span><i>→</i><strong>Tool call</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="overview" class="section shell">
+      <div class="section-kicker">01 · OVERVIEW</div>
+      <h2>Compile once. Reuse at runtime.</h2>
+      <p class="section-copy">Many tool-use systems repeatedly process static tool information for every request. ES separates reusable knowledge from the live user query, enabling a lighter runtime path designed with mobile inference in mind.</p>
+      <div class="feature-grid">
+        <article><div class="icon">⚡</div><h3>Less repeated work</h3><p>Avoid processing the same tool descriptions on every interaction.</p></article>
+        <article><div class="icon">🧠</div><h3>Reusable states</h3><p>Prepare compact tool-specific states offline and load them when needed.</p></article>
+        <article><div class="icon">📱</div><h3>On-device first</h3><p>Designed around latency, storage, and runtime constraints of mobile deployment.</p></article>
+      </div>
+    </section>
+
+    <section id="method" class="section shell split">
+      <div>
+        <div class="section-kicker">02 · METHOD</div>
+        <h2>A simple runtime path.</h2>
+        <p class="section-copy">A lightweight retriever selects a candidate state from the user query. The runtime loads that state and generates the function call without repeatedly prefilling the full tool specification.</p>
+      </div>
+      <div class="flow-card">
+        <div class="flow-node query">User Query</div>
+        <div class="arrow">↓</div>
+        <div class="flow-node">State Retriever</div>
+        <div class="arrow">↓</div>
+        <div class="flow-node accent">Reusable State</div>
+        <div class="arrow">↓</div>
+        <div class="flow-node">Function Call</div>
+        <div class="arrow">↓</div>
+        <div class="flow-node success">Device Action</div>
+      </div>
+    </section>
+
+    <section id="demo" class="section shell">
+      <div class="section-kicker">03 · DEMO</div>
+      <h2>See the execution, not just the benchmark.</h2>
+      <p class="section-copy">The mobile demo will show retrieval, state loading, generated function calls, and real device actions in one view. This preview is intentionally static for now.</p>
+      <div class="demo-window">
+        <div class="window-bar"><span></span><span></span><span></span><small>ES Mobile Demo</small></div>
+        <div class="demo-content">
+          <div class="phone-panel">
+            <div class="phone-label">USER QUERY</div>
+            <div class="query-box">Set a timer for 20 minutes.</div>
+            <button disabled>Run ES</button>
+          </div>
+          <div class="trace-panel">
+            <div class="trace active"><b>01</b><span>Query received</span><em>✓</em></div>
+            <div class="trace active"><b>02</b><span>State retrieved</span><em>✓</em></div>
+            <div class="trace active"><b>03</b><span>State loaded</span><em>✓</em></div>
+            <div class="trace"><b>04</b><span>Function call</span><code>set_timer(20m)</code></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="results" class="section shell">
+      <div class="section-kicker">04 · RESULTS</div>
+      <h2>Numbers will land here.</h2>
+      <p class="section-copy">Final benchmark values are intentionally hidden while the project is private in spirit. Replace these placeholders once the public release is ready.</p>
+      <div class="metrics">
+        <div class="metric"><span>Prompt reduction</span><strong>TBD</strong><small>vs. baseline</small></div>
+        <div class="metric"><span>TTFT speedup</span><strong>TBD</strong><small>on-device</small></div>
+        <div class="metric"><span>Accuracy</span><strong>TBD</strong><small>task benchmark</small></div>
+        <div class="metric"><span>Storage / tool</span><strong>TBD</strong><small>quantized</small></div>
+      </div>
+    </section>
+
+    <section id="updates" class="section shell">
+      <div class="section-kicker">05 · UPDATES</div>
+      <h2>Build notes & releases.</h2>
+      <div class="posts">
+        <article><time>Coming soon</time><h3>Why repeated tool prompts are expensive</h3><p>A short technical note on the motivation behind ES.</p></article>
+        <article><time>Coming soon</time><h3>Running ES on a mobile device</h3><p>Deployment notes, constraints, and an end-to-end demo.</p></article>
+        <article><time>Coming soon</time><h3>Compact state storage</h3><p>Notes on quantization and practical storage trade-offs.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <div><b>ES</b><span>Efficient on-device tool use.</span></div>
+    <p>Research preview · details intentionally withheld until public release.</p>
+  </footer>
+</body>
+</html>
