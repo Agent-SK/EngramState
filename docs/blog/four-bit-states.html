@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Storing recurrent states at 4 bits · EngramState</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#results">Results</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header>
+  <main>
+    <section class="article-hero article-shell">
+      <div class="article-meta">Technical note 03 · Deployment</div>
+      <h1>Storing recurrent states at 4 bits</h1>
+      <p>Reusable states remove repeated prompt compute, but they introduce persistent storage. Quantization is what makes that trade practical at device scale.</p>
+    </section>
+    <article class="article-card article-shell">
+      <p>EngramState stores a pair of recurrent states for each tool: Base and Corrective. Keeping those tensors in full FP16 precision is simple, but the storage cost grows linearly with the number of tools.</p>
+
+      <h2>The storage trade</h2>
+      <p>For RWKV-7 1.5B, the combined FP16 Base + Corrective representation is approximately <strong>24.76 MiB per tool</strong>. At 100 tools, that would already be roughly 2.42 GiB.</p>
+      <p>That is too expensive for a design intended to scale across a mobile tool catalog.</p>
+
+      <h2>4-bit per-channel quantization</h2>
+      <p>EngramState applies <strong>4-bit per-channel linear quantization</strong> to both stored states. This reduces the combined storage to approximately <strong>6.19 MiB per tool</strong>, a 4× reduction from FP16.</p>
+      <pre><code>RWKV-7 1.5B, Base + Corrective
+FP16  : 24.76 MiB / tool
+4-bit :  6.19 MiB / tool</code></pre>
+
+      <div class="article-callout"><strong>Why 4 bits?</strong> The choice is practical rather than a claim that lower precision is impossible. Four-bit storage is byte-friendly — two values fit naturally in one byte — and is well supported by mobile inference stacks.</div>
+
+      <h2>What about 3 bits?</h2>
+      <p>Three-bit storage can reduce footprint further, and our experiments show it can remain close to the higher-precision baseline. The drawback is implementation complexity: 3-bit values are not byte-aligned, so packing and unpacking become more awkward on real devices.</p>
+      <p>For a research system targeting practical deployment, 4-bit storage provides a useful balance between compactness, implementation simplicity, and accuracy.</p>
+
+      <h2>Storage is only one side of the design</h2>
+      <p>The runtime does not need to load every stored state. EngramState retrieves a small candidate set and selectively loads states as needed. Persistent storage therefore scales with the catalog, while active runtime state remains tied to the retrieved candidates.</p>
+
+      <p><a class="back-link" href="./">← Back to technical notes</a></p>
+    </article>
+  </main>
+</body>
+</html>
