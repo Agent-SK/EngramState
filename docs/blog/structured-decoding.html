@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Combining EngramState with structured decoding</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../brand.css"></head><body><div class="noise"></div><header class="nav shell"><a class="brand" href="../"><span class="brand-mark">E</span> EngramState</a><nav><a href="./">Blog</a><a href="../#method">Method</a><a class="github" href="https://github.com/Agent-SK/ES">GitHub ↗</a></nav></header><main><section class="article-hero article-shell"><div class="article-meta">Technical note 07 · Structured output</div><h1>Combining EngramState with structured decoding</h1><p>Reusable state answers “what tool knowledge should the model remember?” Structured decoding answers “what outputs are syntactically allowed?” They solve different problems and can work together.</p></section><article class="article-card article-shell">
+<h2>Why the original gain looked small</h2><p>On DroidCall, the fine-tuned model had already learned much of the expected function-call syntax. Adding a grammar constraint therefore had limited room to improve formatting.</p>
+<h2>Change the required output format</h2><p>To isolate the role of constrained decoding, we changed the required output to JSON without additional syntax-constraint training. This creates a setting where the semantic tool knowledge can still be useful while the exact output grammar is unfamiliar.</p>
+<table class="comparison-table"><thead><tr><th>Method</th><th>Decoding</th><th>Valid JSON</th><th>Accuracy</th></tr></thead><tbody><tr><td>Prompt (Top-4)</td><td>Free</td><td>0.200</td><td>0.125</td></tr><tr><td>Prompt (Top-4)</td><td>XGrammar2</td><td>0.990</td><td>0.595</td></tr><tr><td>EngramState</td><td>Free</td><td>0.645</td><td>0.410</td></tr><tr><td><strong>EngramState</strong></td><td><strong>XGrammar2</strong></td><td><strong>0.980</strong></td><td><strong>0.615</strong></td></tr></tbody></table>
+<div class="article-callout"><strong>Interpretation:</strong> the state can carry semantic tool knowledge while XGrammar2 enforces the required syntax. When output format changes, the two mechanisms are complementary rather than redundant.</div>
+<h2>Where structured decoding helps most</h2><p>The combination is especially useful for errors that are fundamentally syntactic or schema-driven: malformed JSON, missing braces, invalid keys, or strict type/enum constraints. It is less likely to fix semantic errors such as choosing the wrong tool or inventing the wrong parameter value.</p>
+<h2>A clean systems decomposition</h2><pre><code>Retriever + EngramState
+    → choose / restore semantic tool knowledge
+
+Structured decoder
+    → constrain legal output form
+
+Validator
+    → inspect semantic + execution correctness</code></pre>
+<p>This separation also makes the agent easier to reason about: retrieval, memory, syntax, and execution validation each have a distinct responsibility.</p>
+<p><a class="back-link" href="./">← Back to technical notes</a></p></article></main></body></html>
