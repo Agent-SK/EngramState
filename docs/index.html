@@ -38,7 +38,7 @@
         <div class="cta-row">
           <a class="button primary" href="#demo">See the live comparison</a>
           <a class="button secondary" href="#method">Explore the method</a>
-          <a class="button ghost disabled" aria-disabled="true">Paper · coming at release</a>
+          <a class="button ghost" href="./EngramState_NeurIPS2026.pdf" target="_blank" rel="noopener noreferrer">Read Paper (PDF)</a>
         </div>
         <div class="hero-badges">
           <span class="hero-badge">Stateful on-device inference</span>
@@ -56,7 +56,7 @@
       <div class="hero-metrics">
         <div><strong>97.8%</strong><span>fewer prompt tokens</span></div>
         <div><strong>28.2×</strong><span>faster TTFT</span></div>
-        <div><strong>6.19 MiB</strong><span>4-bit states / tool</span></div>
+        <div><strong>3.10 MiB</strong><span>4-bit states / tool</span></div>
         <div><strong>0.956</strong><span>Hit@4 at 206 tools</span></div>
       </div>
 
@@ -184,13 +184,13 @@ examples:
             <tr><td>Prompt tokens</td><td>985</td><td class="win">22 <small>↓ 97.8%</small></td></tr>
             <tr><td>TTFT</td><td>7.301 s</td><td class="win">0.259 s <small>28.2× faster</small></td></tr>
             <tr><td>Runtime tool knowledge</td><td>Repeated text prefill</td><td class="win">Reusable state load</td></tr>
-            <tr><td>4-bit state storage</td><td>—</td><td class="win">6.19 MiB / tool</td></tr>
+            <tr><td>4-bit state storage</td><td>—</td><td class="win">3.10 MiB / tool</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="results-grid">
-        <article><span class="mini-label">STATE STORAGE</span><strong>24.76 → 6.19</strong><p>MiB per tool when Base + Corrective states are reduced from FP16 to 4-bit per-channel storage.</p></article>
+        <article><span class="mini-label">STATE STORAGE</span><strong>24.76 → 3.10</strong><p>MiB per tool when Base + Corrective states are reduced from FP16 to 4-bit per-channel storage.</p></article>
         <article><span class="mini-label">RETRIEVER SCALE</span><strong>0.956 Hit@4</strong><p>Measured with 206 tools while keeping the tool-embedding footprint compact.</p></article>
         <article><span class="mini-label">OFFLINE COST</span><strong>~0.28 s</strong><p>Base + Corrective compilation for one RWKV-7 1.5B tool state pair on an RTX 3090.</p></article>
       </div>
@@ -231,7 +231,7 @@ examples:
 
   <footer class="shell">
     <div><b>EngramState</b><span>Reusable recurrent states for on-device tool calling.</span></div>
-    <p>Paper & citation metadata will be added at public release.</p>
+    <p>Accepted at NeurIPS 2026 (Main Track). <a href="./EngramState_NeurIPS2026.pdf" target="_blank" rel="noopener noreferrer">Read the paper (PDF)</a>.</p>
   </footer>
 
   <script src="./hero-loader.js"></script>
