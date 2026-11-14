@@ -109,7 +109,7 @@ Representative results with **RWKV-7 1.5B on DroidCall**:
 | TTFT | 7.301 s | **0.259 s** |
 | Prompt reduction | — | **97.8% ↓** |
 | TTFT speedup | — | **28.2×** |
-| Quantized state storage | — | **6.19 MiB / tool** |
+| Quantized state storage | — | **3.10 MiB / tool** |
 
 ### Real-device evaluation
 
@@ -174,7 +174,7 @@ EngramState applies **4-bit per-channel linear quantization** to stored recurren
 For RWKV-7 1.5B, Base + Corrective storage is approximately:
 
 - FP16: **24.76 MiB / tool**
-- 4-bit: **6.19 MiB / tool**
+- 4-bit: **3.10 MiB / tool**
 
 We also tested lower precision. Three-bit channel-wise quantization stayed within **1.3 percentage points** of the baseline in the reported experiments, while naïve RTN and outlier-scaling approaches degraded much more sharply. Four bits are used as the default for practical deployment because they are byte-friendly (two 4-bit values per byte) and easier to support in existing mobile inference stacks.
 
@@ -321,7 +321,10 @@ python -m eval.droidcall
 
 ## Paper
 
-Paper metadata and the public PDF link will be added at release.
+**EngramState: Loadable Tool Priors for Efficient Function Calling**  
+Accepted at NeurIPS 2026 (Main Track).
+
+[Read Paper (PDF)](./docs/EngramState_NeurIPS2026.pdf)
 
 ## Citation
 
